@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "CyberShield – Scam Detector",
+  "version": "1.0",
+  "description": "Automatically scans WhatsApp Web & Gmail for scam messages and alerts you instantly.",
+
+  "permissions": [
+    "storage",
+    "notifications",
+    "alarms"
+  ],
+
+  "host_permissions": [
+    "http://localhost:5000/*",
+    "https://web.whatsapp.com/*",
+    "https://mail.google.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.whatsapp.com/*",
+        "https://mail.google.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["alert.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

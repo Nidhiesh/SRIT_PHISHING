@@ -1,0 +1,152 @@
+/* CyberShield alert.css */
+
+#cs-root {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: flex-end !important;
+  pointer-events: none !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+#cs-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0,0,0,0.45) !important;
+  backdrop-filter: blur(3px) !important;
+  pointer-events: all !important;
+  animation: cs-fade 0.3s ease !important;
+}
+@keyframes cs-fade { from{opacity:0} to{opacity:1} }
+
+#cs-panel {
+  position: relative !important;
+  z-index: 1 !important;
+  width: 380px !important;
+  margin: 0 24px 24px 0 !important;
+  background: #0d0d1f !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(255,71,87,0.3) !important;
+  border-left: 5px solid #ff4757 !important;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+  overflow: hidden !important;
+  pointer-events: all !important;
+  transform: translateY(40px) !important;
+  opacity: 0 !important;
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.35s cubic-bezier(0.16,1,0.3,1) !important;
+  color: #e8e8f0 !important;
+}
+
+#cs-stripe {
+  height: 4px !important;
+  background: linear-gradient(90deg,#ff4757,#ff6b81,#ff4757) !important;
+  background-size: 200% !important;
+  animation: cs-stripe 2s linear infinite !important;
+}
+@keyframes cs-stripe { from{background-position:0%} to{background-position:200%} }
+
+#cs-top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 14px 16px 10px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+}
+#cs-brand { display:flex !important; align-items:center !important; gap:10px !important; }
+#cs-logo  { font-size:26px !important; }
+#cs-name  { font-size:14px !important; font-weight:800 !important; color:#ff6b81 !important; }
+#cs-where { font-size:10px !important; color:#555588 !important; margin-top:1px !important; }
+
+#cs-close {
+  background: rgba(255,255,255,0.07) !important;
+  border: none !important; color: #888 !important;
+  width:28px !important; height:28px !important;
+  border-radius:8px !important; cursor:pointer !important;
+  font-size:13px !important; display:flex !important;
+  align-items:center !important; justify-content:center !important;
+  transition: background 0.15s, color 0.15s !important;
+}
+#cs-close:hover { background:rgba(255,71,87,0.25) !important; color:#ff6b81 !important; }
+
+#cs-headline {
+  font-size:18px !important; font-weight:900 !important;
+  color:#fff !important; padding:16px 16px 10px !important;
+  letter-spacing:-0.3px !important;
+}
+
+#cs-msg-box {
+  margin:0 16px 14px !important;
+  background:#07071a !important;
+  border-radius:10px !important;
+  border-left:4px solid #ff4757 !important;
+  padding:10px 12px !important;
+}
+#cs-msg-label {
+  font-size:9px !important; font-weight:700 !important;
+  color:#ff4757 !important; text-transform:uppercase !important;
+  letter-spacing:1px !important; margin-bottom:5px !important;
+}
+#cs-msg-text {
+  font-size:12px !important; color:#b0b0cc !important;
+  font-style:italic !important; line-height:1.55 !important;
+  word-break:break-word !important;
+}
+
+#cs-meter-row {
+  display:flex !important; justify-content:space-between !important;
+  align-items:center !important; padding:0 16px 6px !important;
+  font-size:11px !important; color:#666699 !important;
+}
+#cs-meter-pct { font-size:14px !important; font-weight:900 !important; }
+
+#cs-meter-track {
+  height:6px !important; background:rgba(255,255,255,0.08) !important;
+  margin:0 16px 12px !important; border-radius:3px !important; overflow:hidden !important;
+}
+#cs-meter-fill {
+  height:100% !important; border-radius:3px !important;
+  transition:width 0.8s ease !important;
+}
+
+#cs-tags { display:flex !important; flex-wrap:wrap !important; gap:5px !important; padding:0 16px 14px !important; }
+.cs-badge {
+  background:rgba(255,71,87,0.12) !important; color:#ff9090 !important;
+  border:1px solid rgba(255,71,87,0.25) !important;
+  padding:3px 9px !important; border-radius:99px !important;
+  font-size:10px !important; font-weight:700 !important;
+}
+
+#cs-divider { height:1px !important; background:rgba(255,255,255,0.06) !important; margin:0 16px 14px !important; }
+
+#cs-tips-head {
+  font-size:10px !important; font-weight:700 !important;
+  color:#555588 !important; text-transform:uppercase !important;
+  letter-spacing:0.8px !important; padding:0 16px 8px !important;
+}
+#cs-tips { padding:0 16px 14px !important; display:flex !important; flex-direction:column !important; gap:4px !important; }
+.cs-tip {
+  display:flex !important; align-items:flex-start !important; gap:8px !important;
+  font-size:12px !important; color:#9999bb !important;
+  padding:6px 10px !important; background:rgba(255,255,255,0.03) !important;
+  border-radius:8px !important; line-height:1.4 !important;
+}
+.cs-tip-icon { flex-shrink:0 !important; font-size:14px !important; }
+
+#cs-actions { display:flex !important; gap:8px !important; padding:0 16px 12px !important; }
+#cs-btn-safe, #cs-btn-report {
+  flex:1 !important; padding:10px !important; border:none !important;
+  border-radius:10px !important; font-size:12px !important; font-weight:800 !important;
+  cursor:pointer !important; transition:opacity 0.15s, transform 0.1s !important;
+}
+#cs-btn-safe   { background:rgba(46,204,113,0.15) !important; color:#2ecc71 !important; border:1px solid rgba(46,204,113,0.3) !important; }
+#cs-btn-report { background:#ff4757 !important; color:#fff !important; }
+#cs-btn-safe:hover   { opacity:0.8 !important; }
+#cs-btn-report:hover { opacity:0.85 !important; transform:scale(0.98) !important; }
+
+#cs-footer {
+  text-align:center !important; font-size:10px !important;
+  color:#333355 !important; padding:8px 16px 14px !important;
+  border-top:1px solid rgba(255,255,255,0.04) !important;
+}
