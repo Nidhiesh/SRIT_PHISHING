@@ -1,294 +1,777 @@
-// CyberShield scanner.js v5.0 — injected into WhatsApp Web + Gmail
-(function(){
+// // ============================================================
+// // CyberShield content.js v8.0
+// // Rules:
+// //  - ML model ONLY decides scam vs safe
+// //  - Safe messages → completely silent (no log, no alert)
+// //  - Scam messages → popup card on screen (NOT console)
+// //  - Shows contact name + scam message in the card
+// // ============================================================
+
+// (function () {
+//   "use strict";
+
+//   if (window.__CS8__) return;
+//   window.__CS8__ = true;
+
+//   const SITE    = location.hostname;
+//   const API     = "http://localhost:5000/predict";
+//   const checked = new Set();
+//   let   active  = true;
+//   let   scanning = false;
+
+//   // Sync on/off state from popup toggle
+//   chrome.storage.local.get("active", (d) => { active = d.active !== false; });
+//   chrome.storage.onChanged.addListener((c) => { if (c.active) active = c.active.newValue; });
+
+//   // ============================================================
+//   // GET CONTACT / SENDER NAME
+//   // ============================================================
+//   function getContactName() {
+//     if (SITE === "web.whatsapp.com") {
+//       const selectors = [
+//         "[data-testid='conversation-header'] span[title]",
+//         "header span[title]",
+//         "#main header span[dir='auto']",
+//         "[data-testid='conversation-panel-wrapper'] header span"
+//       ];
+//       for (const sel of selectors) {
+//         const el = document.querySelector(sel);
+//         if (el) {
+//           const name = el.getAttribute("title") || el.innerText?.trim();
+//           if (name && name.length > 0) return name;
+//         }
+//       }
+//       return "Unknown Contact";
+//     }
+
+//     if (SITE === "mail.google.com") {
+//       const sender = document.querySelector("span.gD, h3.iw span[email]");
+//       if (sender) return sender.getAttribute("name") || sender.innerText?.trim() || "Unknown Sender";
+//       const subj = document.querySelector("h2.hP");
+//       if (subj) return `Mail: "${subj.innerText?.trim().slice(0, 40)}"`;
+//       return "Unknown Sender";
+//     }
+
+//     return "Unknown";
+//   }
+
+//   // ============================================================
+//   // EXTRACT MESSAGES FROM WHATSAPP / GMAIL
+//   // Returns: [ { text: "...", sender: "Name" }, ... ]
+//   // ============================================================
+//   function extractMessages() {
+//     const results = [];
+
+//     if (SITE === "web.whatsapp.com") {
+
+//       // Strategy 1 — data-pre-plain-text rows
+//       // Attribute format: "[HH:MM, DD/MM/YYYY] SenderName: "
+//       const rows = document.querySelectorAll("[data-pre-plain-text]");
+//       if (rows.length > 0) {
+//         rows.forEach(row => {
+//           const meta        = row.getAttribute("data-pre-plain-text") || "";
+//           const senderMatch = meta.match(/\]\s*(.+?)\s*:/);
+//           const sender      = senderMatch ? senderMatch[1].trim() : getContactName();
+
+//           // Grab message text from inner spans
+//           let text = "";
+//           row.querySelectorAll("span[dir='ltr'], span[dir='rtl']").forEach(s => {
+//             text += s.innerText + " ";
+//           });
+//           // Fallback to full innerText
+//           if (!text.trim()) text = row.innerText || "";
+//           text = text.trim().replace(/\s+/g, " ");
+
+//           if (text.length > 3 && text.length < 1200) {
+//             results.push({ text, sender });
+//           }
+//         });
+//       }
+
+//       // Strategy 2 — TreeWalker on #main (nuclear fallback)
+//       if (results.length === 0) {
+//         const root   = document.querySelector("#main");
+//         const sender = getContactName();
+//         if (root) {
+//           const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+//             acceptNode(n) {
+//               const t = n.textContent.trim();
+//               if (t.length < 5 || t.length > 1000)  return NodeFilter.FILTER_SKIP;
+//               if (/^\d{1,2}:\d{2}/.test(t))          return NodeFilter.FILTER_SKIP;
+//               if (/^(Read|Delivered|Sent|Seen|Typing|Yesterday|Today|Online)$/i.test(t))
+//                                                       return NodeFilter.FILTER_SKIP;
+//               return NodeFilter.FILTER_ACCEPT;
+//             }
+//           });
+//           let node;
+//           while ((node = tw.nextNode())) {
+//             results.push({ text: node.textContent.trim(), sender });
+//           }
+//         }
+//       }
+//     }
+
+//     if (SITE === "mail.google.com") {
+//       const sender = getContactName();
+//       document.querySelectorAll("div.a3s.aiL, div.ii.gt").forEach(el => {
+//         const t = el.innerText?.trim().replace(/\s+/g, " ");
+//         if (t && t.length > 5) results.push({ text: t.slice(0, 900), sender });
+//       });
+//       document.querySelectorAll("h2.hP, span.y2").forEach(el => {
+//         const t = el.innerText?.trim();
+//         if (t && t.length > 3) results.push({ text: t, sender });
+//       });
+//     }
+
+//     // Deduplicate by text
+//     const seen = new Set();
+//     return results.filter(m => {
+//       if (seen.has(m.text)) return false;
+//       seen.add(m.text);
+//       return true;
+//     });
+//   }
+
+//   // ============================================================
+//   // ML MODEL — only this decides scam or safe
+//   // ============================================================
+//   async function mlPredict(text) {
+//     try {
+//       const res = await fetch(API, {
+//         method:  "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body:    JSON.stringify({ message: text.slice(0, 700) }),
+//         signal:  AbortSignal.timeout(4000)
+//       });
+//       if (!res.ok) return null;
+//       return await res.json(); // { prediction: "scam"|"safe", probability: 87.3 }
+//     } catch {
+//       return null; // backend offline
+//     }
+//   }
+
+//   // ============================================================
+//   // MAIN SCAN LOOP
+//   // ============================================================
+//   async function scan() {
+//     if (!active || scanning) return;
+//     scanning = true;
+
+//     const messages = extractMessages();
+
+//     for (const { text, sender } of messages) {
+
+//       // Skip messages already checked
+//       if (checked.has(text)) continue;
+//       checked.add(text);
+//       if (checked.size > 500) checked.delete(checked.values().next().value);
+
+//       // Ask ML model
+//       const result = await mlPredict(text);
+
+//       // Backend offline → stop quietly
+//       if (!result) break;
+
+//       if (result.prediction === "scam") {
+//         // ✅ SCAM: show popup card on screen
+//         showAlert(text, sender, result.probability);
+//         try {
+//           chrome.runtime.sendMessage({
+//             type: "SCAM_FOUND", site: SITE,
+//             sender, preview: text.slice(0, 80),
+//             probability: result.probability
+//           });
+//         } catch (_) {}
+//         break; // one card at a time
+//       }
+
+//       // SAFE: do nothing, no log, no alert — completely silent
+//     }
+
+//     try { chrome.runtime.sendMessage({ type: "SCAN_DONE" }); } catch (_) {}
+//     scanning = false;
+//   }
+
+//   // ============================================================
+//   // POPUP ALERT CARD — shown on screen, centred
+//   // ============================================================
+//   function showAlert(message, contactName, probability) {
+//     // Remove any existing card first
+//     document.getElementById("cs-root")?.remove();
+
+//     const preview = message.length > 150 ? message.slice(0, 150) + "…" : message;
+//     const danger  = probability >= 80 ? "#ff3b3b"
+//                   : probability >= 55 ? "#ff8c00"
+//                   :                     "#f5c518";
+//     const site    = SITE === "web.whatsapp.com" ? "WhatsApp" : "Gmail";
+//     const siteIcon= SITE === "web.whatsapp.com" ? "📱" : "📧";
+//     const riskLbl = probability >= 80 ? "🔴 Very High Risk — Likely a scam"
+//                   : probability >= 55 ? "🟠 High Risk — Treat with caution"
+//                   :                     "🟡 Moderate Risk — Be careful";
+
+//     const root = document.createElement("div");
+//     root.id    = "cs-root";
+
+//     root.innerHTML = `
+//       <div id="cs-backdrop"></div>
+//       <div id="cs-card">
+
+//         <div id="cs-topbar" style="background:${danger}"></div>
+
+//         <!-- Header -->
+//         <div id="cs-hdr">
+//           <div id="cs-hdr-left">
+//             <span id="cs-ico">🛡️</span>
+//             <div>
+//               <div id="cs-ttl">Scam Message Detected</div>
+//               <div id="cs-sub">${siteIcon} ${site} · CyberShield</div>
+//             </div>
+//           </div>
+//           <button id="cs-close">✕</button>
+//         </div>
+
+//         <!-- Contact -->
+//         <div id="cs-contact">
+//           <div id="cs-avatar">👤</div>
+//           <div>
+//             <div id="cs-from-lbl">Scam received from</div>
+//             <div id="cs-from-name">${contactName}</div>
+//           </div>
+//         </div>
+
+//         <!-- Message -->
+//         <div id="cs-msg-wrap">
+//           <div id="cs-msg-lbl">⚠️ Scam Message Content</div>
+//           <div id="cs-msg-txt">${preview}</div>
+//         </div>
+
+//         <!-- Risk bar -->
+//         <div id="cs-risk-wrap">
+//           <div id="cs-risk-row">
+//             <span id="cs-risk-lbl">Scam Risk Score</span>
+//             <span id="cs-risk-pct" style="color:${danger}">${probability}%</span>
+//           </div>
+//           <div id="cs-bar-bg">
+//             <div id="cs-bar-fill" style="width:${probability}%;background:${danger}"></div>
+//           </div>
+//           <div id="cs-risk-hint">${riskLbl}</div>
+//         </div>
+
+//         <div id="cs-sep"></div>
+
+//         <!-- Suggestions -->
+//         <div id="cs-sug-ttl">What you must do right now</div>
+//         <div id="cs-sugs">
+//           <div class="cs-sug"><span class="cs-n">1</span><span>Do <b>NOT</b> click any link in this message</span></div>
+//           <div class="cs-sug"><span class="cs-n">2</span><span>Never share your OTP, PIN, or bank password</span></div>
+//           <div class="cs-sug"><span class="cs-n">3</span><span>Hang up immediately and call your bank directly</span></div>
+//           <div class="cs-sug"><span class="cs-n">4</span><span>Verify sender identity through official channels only</span></div>
+//           <div class="cs-sug"><span class="cs-n">5</span><span>Report at <b>cybercrime.gov.in</b> or call <b>1930</b></span></div>
+//         </div>
+
+//         <!-- Buttons -->
+//         <div id="cs-btns">
+//           <button id="cs-safe-btn">✅ This is Safe</button>
+//           <button id="cs-report-btn" style="background:${danger}">🚨 Report Scam</button>
+//         </div>
+
+//         <!-- Countdown bar -->
+//         <div id="cs-countdown"><div id="cs-countdown-fill" style="background:${danger}"></div></div>
+
+//       </div>`;
+
+//     document.body.appendChild(root);
+
+//     // Animate card in
+//     const card = root.querySelector("#cs-card");
+//     requestAnimationFrame(() => {
+//       requestAnimationFrame(() => {
+//         if (card) { card.style.opacity = "1"; card.style.transform = "translate(-50%,-50%) scale(1)"; }
+//         // Start 30s countdown bar
+//         const fill = root.querySelector("#cs-countdown-fill");
+//         if (fill) {
+//           fill.style.transition = "width 30s linear";
+//           fill.style.width = "0%";
+//         }
+//       });
+//     });
+
+//     const close = () => {
+//       if (card) { card.style.opacity = "0"; card.style.transform = "translate(-50%,-50%) scale(0.95)"; }
+//       setTimeout(() => root?.remove(), 280);
+//     };
+
+//     root.querySelector("#cs-close").onclick       = close;
+//     root.querySelector("#cs-backdrop").onclick    = close;
+//     root.querySelector("#cs-safe-btn").onclick    = close;
+//     root.querySelector("#cs-report-btn").onclick  = () => {
+//       window.open("https://cybercrime.gov.in", "_blank");
+//       close();
+//     };
+
+//     setTimeout(close, 30000);
+//   }
+
+//   // ============================================================
+//   // BOOT
+//   // ============================================================
+//   async function boot() {
+//     await new Promise(r => {
+//       if (document.readyState === "complete") return r();
+//       window.addEventListener("load", r, { once: true });
+//     });
+//     // Wait for WhatsApp/Gmail to fully render
+//     await new Promise(r => setTimeout(r, SITE === "web.whatsapp.com" ? 5000 : 2500));
+
+//     // Scan every 6 seconds
+//     scan();
+//     setInterval(scan, 6000);
+
+//     // Scan when user opens new chat
+//     document.addEventListener("click", () => setTimeout(scan, 2000), { passive: true });
+
+//     // Scan when new messages appear in DOM
+//     const target = document.querySelector("#main") || document.body;
+//     let debounce;
+//     new MutationObserver(() => {
+//       clearTimeout(debounce);
+//       debounce = setTimeout(scan, 1000);
+//     }).observe(target, { childList: true, subtree: true });
+//   }
+
+//   // Triggered by background.js alarm
+//   chrome.runtime.onMessage.addListener((msg, _, res) => {
+//     if (msg.type === "TRIGGER_SCAN") { scan(); res({ ok: true }); }
+//   });
+
+//   boot();
+
+// })();
+
+
+
+
+
+
+// ============================================================
+// CyberShield content.js v8.1
+// Rules:
+//  - ML model ONLY decides scam vs safe
+//  - Safe messages → completely silent (no log, no alert)
+//  - Scam messages → popup card on screen (NOT console)
+//  - Shows contact name + scam message in the card
+//  - WhatsApp: scans ONLY unopened/unread incoming messages
+// ============================================================
+
+(function () {
   "use strict";
-  if(window.__CS__)return;
-  window.__CS__=true;
 
-  const SITE=location.hostname;
-  const INTERVAL=6000;
-  const API="http://localhost:5000/predict";
-  const checked=new Set();
-  let active=true;
+  if (window.__CS8__) return;
+  window.__CS8__ = true;
 
-  console.log(`%c[CyberShield] ✅ Active on ${SITE}`,"color:#00e5ff;font-weight:bold");
+  const SITE    = location.hostname;
+  const API     = "http://localhost:5000/predict";
+  const checked = new Set();
+  let   active  = true;
+  let   scanning = false;
 
-  chrome.storage.local.get("active",(d)=>{active=d.active!==false;});
-  chrome.storage.onChanged.addListener((c)=>{if(c.active)active=c.active.newValue;});
+  // Sync on/off state from popup toggle
+  chrome.storage.local.get("active", (d) => { active = d.active !== false; });
+  chrome.storage.onChanged.addListener((c) => { if (c.active) active = c.active.newValue; });
 
-  // ── EXTRACTION ──────────────────────────────────────────────
-
-  function getWhatsAppTexts(){
-    const out=[];
-
-    // Strategy A: TreeWalker on #main — works on ALL WA versions
-    const root=document.querySelector("#main");
-    if(root){
-      const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{
-        acceptNode(n){
-          const t=n.textContent.trim();
-          if(t.length<4||t.length>1200)return NodeFilter.FILTER_SKIP;
-          if(/^\d{1,2}:\d{2}(\s?(AM|PM))?$/.test(t))return NodeFilter.FILTER_SKIP;
-          if(/^(Read|Delivered|Sent|Seen|Typing…|You|Yesterday|Today)$/.test(t))return NodeFilter.FILTER_SKIP;
-          return NodeFilter.FILTER_ACCEPT;
+  // ============================================================
+  // GET CONTACT / SENDER NAME
+  // ============================================================
+  function getContactName() {
+    if (SITE === "web.whatsapp.com") {
+      const selectors = [
+        "[data-testid='conversation-header'] span[title]",
+        "header span[title]",
+        "#main header span[dir='auto']",
+        "[data-testid='conversation-panel-wrapper'] header span"
+      ];
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+          const name = el.getAttribute("title") || el.innerText?.trim();
+          if (name && name.length > 0) return name;
         }
-      });
-      let node;
-      while((node=walker.nextNode()))out.push(node.textContent.trim());
+      }
+      return "Unknown Contact";
     }
 
-    // Strategy B: data-pre-plain-text rows
-    document.querySelectorAll("[data-pre-plain-text]").forEach(el=>{
-      const t=el.innerText?.trim().replace(/\s+/g," ");
-      if(t&&t.length>3)out.push(t);
-    });
-
-    // Strategy C: focusable list items
-    document.querySelectorAll(".focusable-list-item,[tabindex='-1'][role='row']").forEach(el=>{
-      const t=el.innerText?.trim().replace(/\s+/g," ");
-      if(t&&t.length>3&&t.length<800)out.push(t);
-    });
-
-    return[...new Set(out)];
-  }
-
-  function getGmailTexts(){
-    const out=[];
-    document.querySelectorAll("div.a3s.aiL,div.ii.gt").forEach(el=>{
-      const t=el.innerText?.trim().replace(/\s+/g," ");
-      if(t&&t.length>5)out.push(t.slice(0,900));
-    });
-    document.querySelectorAll("h2.hP").forEach(el=>{
-      const t=el.innerText?.trim();
-      if(t)out.push(t);
-    });
-    document.querySelectorAll("span.y2").forEach(el=>{
-      const t=el.innerText?.trim();
-      if(t&&t.length>3)out.push(t);
-    });
-    return[...new Set(out)];
-  }
-
-  function collectTexts(){
-    if(SITE==="web.whatsapp.com")return getWhatsAppTexts();
-    if(SITE==="mail.google.com") return getGmailTexts();
-    return[];
-  }
-
-  // ── KEYWORD ENGINE ──────────────────────────────────────────
-
-  const RULES=[
-    [/send\s*(your\s*)?otp/i,3,"OTP Request"],
-    [/share\s*(your\s*)?otp/i,3,"OTP Request"],
-    [/enter\s*(the\s*)?otp/i,3,"OTP Request"],
-    [/otp\s*(bhejo|send|share|de\s*do)/i,3,"OTP Request"],
-    [/verify\s*your\s*account/i,3,"Account Verify"],
-    [/account\s*will\s*be\s*block/i,3,"Block Threat"],
-    [/atm\s*(pin|card)/i,3,"ATM PIN"],
-    [/bank\s*account\s*detail/i,3,"Bank Details"],
-    [/confirm\s*your\s*password/i,3,"Password Request"],
-    [/kyc\s*(update|verify|complete)/i,3,"KYC Scam"],
-    [/(update|complete)\s*kyc/i,3,"KYC Scam"],
-    [/pan\s*card\s*(block|expired)/i,3,"PAN Scam"],
-    [/aadhaar\s*(update|verify|link)/i,3,"Aadhaar Scam"],
-    [/police\s*case\s*filed/i,3,"Threat Scam"],
-    [/arrest\s*warrant/i,3,"Threat Scam"],
-    [/income\s*tax\s*refund/i,3,"Tax Refund Scam"],
-    [/trai\s*block/i,3,"TRAI Scam"],
-    [/cybercrime\s*department/i,3,"Authority Scam"],
-    [/you\s*(have\s*)?won/i,2,"Prize Scam"],
-    [/you\s*(are\s*)?(the\s*)?winner/i,2,"Prize Scam"],
-    [/lucky\s*draw/i,2,"Lottery Scam"],
-    [/lottery\s*prize/i,2,"Lottery Scam"],
-    [/claim\s*(your\s*)?(prize|reward)/i,2,"Claim Scam"],
-    [/free\s*(iphone|samsung|laptop)/i,2,"Free Item Scam"],
-    [/amazon\s*gift\s*card/i,2,"Gift Card Scam"],
-    [/loan\s*(is\s*)?approv/i,2,"Loan Scam"],
-    [/click\s*this\s*link/i,2,"Phishing Link"],
-    [/limited\s*time\s*offer/i,2,"Urgency Tactic"],
-    [/electricity\s*(cut|disconnect)/i,2,"Utility Scam"],
-    [/sim\s*will\s*be\s*block/i,2,"SIM Scam"],
-    [/government\s*subsidy/i,2,"Gov Scam"],
-    [/upi\s*(suspend|block|deactivat)/i,2,"UPI Scam"],
-    [/whatsapp\s*(suspend|block|ban)/i,2,"WA Scam"],
-    [/pay\s*delivery\s*charge/i,2,"Delivery Scam"],
-    [/free\s*recharge/i,2,"Recharge Scam"],
-    [/free\s*money/i,2,"Free Money"],
-    [/urgent/i,1,"Urgency"],
-    [/immediately/i,1,"Urgency"],
-    [/click\s*here/i,1,"Click Here"],
-    [/congratulations/i,1,"Congrats Hook"],
-    [/cashback/i,1,"Cashback"],
-    [/winner/i,1,"Winner"],
-    [/prize/i,1,"Prize"],
-    [/verify\s*now/i,1,"Verify Now"],
-  ];
-
-  function keywordCheck(text){
-    let score=0;const tags=[];
-    for(const[re,w,tag]of RULES){
-      if(re.test(text)){score+=w;tags.push(tag);}
+    if (SITE === "mail.google.com") {
+      const sender = document.querySelector("span.gD, h3.iw span[email]");
+      if (sender) return sender.getAttribute("name") || sender.innerText?.trim() || "Unknown Sender";
+      const subj = document.querySelector("h2.hP");
+      if (subj) return `Mail: "${subj.innerText?.trim().slice(0, 40)}"`;
+      return "Unknown Sender";
     }
-    if(/https?:\/\/(?!wa\.me|whatsapp\.|google\.|youtube\.|amazon\.in)/i.test(text)){
-      score+=2;tags.push("Suspicious URL");
+
+    return "Unknown";
+  }
+
+  // ============================================================
+  // TRACK OPENED CHATS — mark a chat as "read" once user opens it
+  // ============================================================
+  const openedChats = new Set();
+
+  function getCurrentChatId() {
+    // Use the conversation header title as a stable chat identifier
+    const el = document.querySelector(
+      "[data-testid='conversation-header'] span[title], header span[title], #main header span[dir='auto']"
+    );
+    return el ? (el.getAttribute("title") || el.innerText?.trim() || null) : null;
+  }
+
+  // Mark the currently open chat as "seen" when user clicks into it
+  document.addEventListener("click", () => {
+    const id = getCurrentChatId();
+    if (id) openedChats.add(id);
+  }, { passive: true });
+
+  // ============================================================
+  // CHECK IF CURRENT CHAT HAS UNREAD MESSAGES
+  // Looks for the unread divider or unread badge in the active chat
+  // ============================================================
+  function currentChatHasUnread() {
+    // WA inserts an "X unread messages" separator divider inside the message list
+    const unreadDivider = document.querySelector(
+      "[data-testid='unread-msgs-separator'], " +
+      "div[data-animate-unread-count]"
+    );
+    if (unreadDivider) return true;
+
+    // Fallback: check the active chat row in the sidebar for a badge count
+    const activeRow = document.querySelector(
+      "[data-testid='cell-frame-container'][aria-selected='true']"
+    );
+    if (activeRow) {
+      const badge = activeRow.querySelector(
+        "[data-testid='icon-unread-count'], span[aria-label*='unread']"
+      );
+      if (badge) return true;
     }
-    const isScam=score>=2;
-    return{
-      isScam,
-      probability:isScam?Math.min(Math.max(score*12,55),97):0,
-      tags:[...new Set(tags)].slice(0,4)
-    };
+
+    return false;
   }
 
-  async function mlCheck(text){
-    try{
-      const r=await fetch(API,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({message:text.slice(0,600)}),
-        signal:AbortSignal.timeout(2500)
-      });
-      if(!r.ok)return null;
-      return await r.json();
-    }catch{return null;}
-  }
+  // ============================================================
+  // EXTRACT ONLY UNREAD MESSAGES FROM WHATSAPP / GMAIL
+  // Returns: [ { text: "...", sender: "Name" }, ... ]
+  // ============================================================
+  function extractMessages() {
+    const results = [];
 
-  async function analyse(text){
-    const kw=keywordCheck(text);
-    if(kw.probability>=65)return kw;
-    const ml=await mlCheck(text);
-    if(ml?.prediction){
-      const prob=Math.max(ml.probability||0,kw.probability);
-      return{isScam:prob>=50,probability:prob,tags:kw.tags};
-    }
-    return kw;
-  }
+    if (SITE === "web.whatsapp.com") {
 
-  // ── SCAN LOOP ───────────────────────────────────────────────
+      // ── UNREAD GUARD ────────────────────────────────────────
+      // 1. Skip if user already opened / acknowledged this chat
+      const chatId = getCurrentChatId();
+      if (chatId && openedChats.has(chatId)) return [];
 
-  async function scan(){
-    if(!active)return;
-    const texts=collectTexts();
-    if(!texts.length){console.log("[CyberShield] No messages yet…");return;}
-    console.log(`[CyberShield] Scanning ${texts.length} chunks…`);
+      // 2. Skip if no unread indicator present in current chat
+      if (!currentChatHasUnread()) return [];
+      // ────────────────────────────────────────────────────────
 
-    for(const text of texts){
-      if(checked.has(text))continue;
-      checked.add(text);
-      if(checked.size>600){const it=checked.values();for(let i=0;i<100;i++)checked.delete(it.next().value);}
+      // Strategy 1 — Use the "unread messages" separator divider.
+      // Messages that appear AFTER the separator in the DOM are unread.
+      const separator = document.querySelector(
+        "[data-testid='unread-msgs-separator'], " +
+        "div[data-animate-unread-count]"
+      );
 
-      const result=await analyse(text);
-      if(result.isScam){
-        console.warn(`%c[CyberShield] 🚨 SCAM ${result.probability}% → "${text.slice(0,60)}"`,"color:#ff4757;font-weight:bold");
-        showAlert(text,result);
-        try{chrome.runtime.sendMessage({type:"SCAM_FOUND",text,probability:result.probability});}catch(_){}
-        break;
+      if (separator) {
+        const allRows = Array.from(document.querySelectorAll("[data-pre-plain-text]"));
+
+        allRows.forEach(row => {
+          // Only process rows that come AFTER the unread separator
+          const position = separator.compareDocumentPosition(row);
+          if (!(position & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+
+          // Skip outgoing (sent by "me") messages
+          if (row.closest(".message-out")) return;
+
+          const meta        = row.getAttribute("data-pre-plain-text") || "";
+          const senderMatch = meta.match(/\]\s*(.+?)\s*:/);
+          const sender      = senderMatch ? senderMatch[1].trim() : getContactName();
+
+          let text = "";
+          row.querySelectorAll("span[dir='ltr'], span[dir='rtl']").forEach(s => {
+            text += s.innerText + " ";
+          });
+          if (!text.trim()) text = row.innerText || "";
+          text = text.trim().replace(/\s+/g, " ");
+
+          if (text.length > 3 && text.length < 1200) {
+            results.push({ text, sender });
+          }
+        });
+      }
+
+      // Strategy 2 — No separator found but chat IS unread.
+      // Grab only the most recent incoming (non-outgoing) message.
+      if (results.length === 0) {
+        const allRows = Array.from(document.querySelectorAll("[data-pre-plain-text]"));
+
+        for (let i = allRows.length - 1; i >= 0; i--) {
+          const row = allRows[i];
+
+          // Skip outgoing messages
+          if (row.closest(".message-out")) continue;
+
+          const meta        = row.getAttribute("data-pre-plain-text") || "";
+          const senderMatch = meta.match(/\]\s*(.+?)\s*:/);
+          const sender      = senderMatch ? senderMatch[1].trim() : getContactName();
+
+          let text = "";
+          row.querySelectorAll("span[dir='ltr'], span[dir='rtl']").forEach(s => {
+            text += s.innerText + " ";
+          });
+          if (!text.trim()) text = row.innerText || "";
+          text = text.trim().replace(/\s+/g, " ");
+
+          if (text.length > 3 && text.length < 1200) {
+            results.push({ text, sender });
+            break; // only the single latest incoming unread message
+          }
+        }
       }
     }
-    try{chrome.runtime.sendMessage({type:"SCAN_DONE"});}catch(_){}
+
+    if (SITE === "mail.google.com") {
+      const sender = getContactName();
+      document.querySelectorAll("div.a3s.aiL, div.ii.gt").forEach(el => {
+        const t = el.innerText?.trim().replace(/\s+/g, " ");
+        if (t && t.length > 5) results.push({ text: t.slice(0, 900), sender });
+      });
+      document.querySelectorAll("h2.hP, span.y2").forEach(el => {
+        const t = el.innerText?.trim();
+        if (t && t.length > 3) results.push({ text: t, sender });
+      });
+    }
+
+    // Deduplicate by text
+    const seen = new Set();
+    return results.filter(m => {
+      if (seen.has(m.text)) return false;
+      seen.add(m.text);
+      return true;
+    });
   }
 
-  // ── ALERT CARD ──────────────────────────────────────────────
+  // ============================================================
+  // ML MODEL — only this decides scam or safe
+  // ============================================================
+  async function mlPredict(text) {
+    try {
+      const res = await fetch(API, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ message: text.slice(0, 700) }),
+        signal:  AbortSignal.timeout(4000)
+      });
+      if (!res.ok) return null;
+      return await res.json(); // { prediction: "scam"|"safe", probability: 87.3 }
+    } catch {
+      return null; // backend offline
+    }
+  }
 
-  function showAlert(text,result){
+  // ============================================================
+  // MAIN SCAN LOOP
+  // ============================================================
+  async function scan() {
+    if (!active || scanning) return;
+    scanning = true;
+
+    const messages = extractMessages();
+
+    for (const { text, sender } of messages) {
+
+      // Skip messages already checked
+      if (checked.has(text)) continue;
+      checked.add(text);
+      if (checked.size > 500) checked.delete(checked.values().next().value);
+
+      // Ask ML model
+      const result = await mlPredict(text);
+
+      // Backend offline → stop quietly
+      if (!result) break;
+
+      if (result.prediction === "scam") {
+        // ✅ SCAM: show popup card on screen
+        showAlert(text, sender, result.probability);
+        try {
+          chrome.runtime.sendMessage({
+            type: "SCAM_FOUND", site: SITE,
+            sender, preview: text.slice(0, 80),
+            probability: result.probability
+          });
+        } catch (_) {}
+        break; // one card at a time
+      }
+
+      // SAFE: do nothing, no log, no alert — completely silent
+    }
+
+    try { chrome.runtime.sendMessage({ type: "SCAN_DONE" }); } catch (_) {}
+    scanning = false;
+  }
+
+  // ============================================================
+  // POPUP ALERT CARD — shown on screen, centred
+  // ============================================================
+  function showAlert(message, contactName, probability) {
+    // Remove any existing card first
     document.getElementById("cs-root")?.remove();
-    const prob=result.probability;
-    const tags=result.tags?.length?result.tags:["Suspicious Content"];
-    const preview=text.length>130?text.slice(0,130)+"…":text;
-    const danger=prob>=80?"#ff4757":prob>=55?"#ff9f43":"#ffd32a";
-    const site=SITE==="web.whatsapp.com"?"WhatsApp":"Gmail";
 
-    const root=document.createElement("div");
-    root.id="cs-root";
-    root.innerHTML=`
-      <div id="cs-overlay"></div>
-      <div id="cs-panel">
-        <div id="cs-stripe"></div>
-        <div id="cs-top">
-          <div id="cs-brand">
-            <div id="cs-logo">🛡️</div>
+    const preview = message.length > 150 ? message.slice(0, 150) + "…" : message;
+    const danger  = probability >= 80 ? "#ff3b3b"
+                  : probability >= 55 ? "#ff8c00"
+                  :                     "#f5c518";
+    const site    = SITE === "web.whatsapp.com" ? "WhatsApp" : "Gmail";
+    const siteIcon= SITE === "web.whatsapp.com" ? "📱" : "📧";
+    const riskLbl = probability >= 80 ? "🔴 Very High Risk — Likely a scam"
+                  : probability >= 55 ? "🟠 High Risk — Treat with caution"
+                  :                     "🟡 Moderate Risk — Be careful";
+
+    const root = document.createElement("div");
+    root.id    = "cs-root";
+
+    root.innerHTML = `
+      <div id="cs-backdrop"></div>
+      <div id="cs-card">
+
+        <div id="cs-topbar" style="background:${danger}"></div>
+
+        <!-- Header -->
+        <div id="cs-hdr">
+          <div id="cs-hdr-left">
+            <span id="cs-ico">🛡️</span>
             <div>
-              <div id="cs-name">CyberShield</div>
-              <div id="cs-where">Detected on ${site}</div>
+              <div id="cs-ttl">Scam Message Detected</div>
+              <div id="cs-sub">${siteIcon} ${site} · CyberShield</div>
             </div>
           </div>
           <button id="cs-close">✕</button>
         </div>
-        <div id="cs-headline">⚠️ Scam Message Detected</div>
-        <div id="cs-msg-box">
-          <div id="cs-msg-label">Flagged message</div>
-          <div id="cs-msg-text">"${preview}"</div>
+
+        <!-- Contact -->
+        <div id="cs-contact">
+          <div id="cs-avatar">👤</div>
+          <div>
+            <div id="cs-from-lbl">Scam received from</div>
+            <div id="cs-from-name">${contactName}</div>
+          </div>
         </div>
-        <div id="cs-meter-row">
-          <span id="cs-meter-label">Scam Risk</span>
-          <span id="cs-meter-pct" style="color:${danger}">${prob}%</span>
+
+        <!-- Message -->
+        <div id="cs-msg-wrap">
+          <div id="cs-msg-lbl">⚠️ Scam Message Content</div>
+          <div id="cs-msg-txt">${preview}</div>
         </div>
-        <div id="cs-meter-track">
-          <div id="cs-meter-fill" style="width:${prob}%;background:${danger}"></div>
+
+        <!-- Risk bar -->
+        <div id="cs-risk-wrap">
+          <div id="cs-risk-row">
+            <span id="cs-risk-lbl">Scam Risk Score</span>
+            <span id="cs-risk-pct" style="color:${danger}">${probability}%</span>
+          </div>
+          <div id="cs-bar-bg">
+            <div id="cs-bar-fill" style="width:${probability}%;background:${danger}"></div>
+          </div>
+          <div id="cs-risk-hint">${riskLbl}</div>
         </div>
-        <div id="cs-tags">${tags.map(t=>`<span class="cs-badge">${t}</span>`).join("")}</div>
-        <div id="cs-divider"></div>
-        <div id="cs-tips-head">What you should do right now</div>
-        <div id="cs-tips">
-          <div class="cs-tip"><span class="cs-tip-icon">🚫</span>Do NOT click any link in this message</div>
-          <div class="cs-tip"><span class="cs-tip-icon">🔐</span>Never share your OTP, PIN or password</div>
-          <div class="cs-tip"><span class="cs-tip-icon">📵</span>Hang up and call your bank directly</div>
-          <div class="cs-tip"><span class="cs-tip-icon">🔍</span>Verify the sender's identity independently</div>
-          <div class="cs-tip"><span class="cs-tip-icon">🚨</span>Report at cybercrime.gov.in if confirmed</div>
+
+        <div id="cs-sep"></div>
+
+        <!-- Suggestions -->
+        <div id="cs-sug-ttl">What you must do right now</div>
+        <div id="cs-sugs">
+          <div class="cs-sug"><span class="cs-n">1</span><span>Do <b>NOT</b> click any link in this message</span></div>
+          <div class="cs-sug"><span class="cs-n">2</span><span>Never share your OTP, PIN, or bank password</span></div>
+          <div class="cs-sug"><span class="cs-n">3</span><span>Hang up immediately and call your bank directly</span></div>
+          <div class="cs-sug"><span class="cs-n">4</span><span>Verify sender identity through official channels only</span></div>
+          <div class="cs-sug"><span class="cs-n">5</span><span>Report at <b>cybercrime.gov.in</b> or call <b>1930</b></span></div>
         </div>
-        <div id="cs-actions">
-          <button id="cs-btn-safe">✅ This is Safe</button>
-          <button id="cs-btn-report">🚨 Report Scam</button>
+
+        <!-- Buttons -->
+        <div id="cs-btns">
+          <button id="cs-safe-btn">✅ This is Safe</button>
+          <button id="cs-report-btn" style="background:${danger}">🚨 Report Scam</button>
         </div>
-        <div id="cs-footer">CyberShield scans your chats every 6 seconds in the background</div>
+
+        <!-- Countdown bar -->
+        <div id="cs-countdown"><div id="cs-countdown-fill" style="background:${danger}"></div></div>
+
       </div>`;
 
     document.body.appendChild(root);
-    requestAnimationFrame(()=>{
-      const p=root.querySelector("#cs-panel");
-      p.style.transform="translateY(0)";
-      p.style.opacity="1";
+
+    // Animate card in
+    const card = root.querySelector("#cs-card");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (card) { card.style.opacity = "1"; card.style.transform = "translate(-50%,-50%) scale(1)"; }
+        // Start 30s countdown bar
+        const fill = root.querySelector("#cs-countdown-fill");
+        if (fill) {
+          fill.style.transition = "width 30s linear";
+          fill.style.width = "0%";
+        }
+      });
     });
 
-    const close=()=>{
-      const p=root.querySelector("#cs-panel");
-      p.style.transform="translateY(30px)";p.style.opacity="0";
-      setTimeout(()=>root.remove(),320);
+    const close = () => {
+      if (card) { card.style.opacity = "0"; card.style.transform = "translate(-50%,-50%) scale(0.95)"; }
+      setTimeout(() => root?.remove(), 280);
     };
 
-    document.getElementById("cs-close").onclick=close;
-    document.getElementById("cs-overlay").onclick=close;
-    document.getElementById("cs-btn-safe").onclick=close;
-    document.getElementById("cs-btn-report").onclick=()=>{
-      window.open("https://cybercrime.gov.in","_blank");close();
+    root.querySelector("#cs-close").onclick       = close;
+    root.querySelector("#cs-backdrop").onclick    = close;
+    root.querySelector("#cs-safe-btn").onclick    = close;
+    root.querySelector("#cs-report-btn").onclick  = () => {
+      window.open("https://cybercrime.gov.in", "_blank");
+      close();
     };
-    setTimeout(close,35000);
+
+    setTimeout(close, 30000);
   }
 
-  // ── BOOT ────────────────────────────────────────────────────
-
-  async function boot(){
-    await new Promise(r=>{
-      if(document.readyState==="complete")return r();
-      window.addEventListener("load",r,{once:true});
+  // ============================================================
+  // BOOT
+  // ============================================================
+  async function boot() {
+    await new Promise(r => {
+      if (document.readyState === "complete") return r();
+      window.addEventListener("load", r, { once: true });
     });
+    // Wait for WhatsApp/Gmail to fully render
+    await new Promise(r => setTimeout(r, SITE === "web.whatsapp.com" ? 5000 : 2500));
 
-    const delay=SITE==="web.whatsapp.com"?5000:2500;
-    await new Promise(r=>setTimeout(r,delay));
-
-    console.log("[CyberShield] 🚀 Scanning every 6s…");
+    // Scan every 6 seconds
     scan();
-    setInterval(scan,INTERVAL);
-    document.addEventListener("click",()=>setTimeout(scan,1800),{passive:true});
+    setInterval(scan, 6000);
 
-    // MutationObserver — catches new messages instantly
-    const mo=new MutationObserver((mutations)=>{
-      for(const m of mutations){
-        if(m.addedNodes.length){setTimeout(scan,800);break;}
-      }
-    });
-    const target=document.querySelector("#main")||document.body;
-    mo.observe(target,{childList:true,subtree:true});
+    // Scan when user opens new chat
+    document.addEventListener("click", () => setTimeout(scan, 2000), { passive: true });
+
+    // Scan when new messages appear in DOM
+    const target = document.querySelector("#main") || document.body;
+    let debounce;
+    new MutationObserver(() => {
+      clearTimeout(debounce);
+      debounce = setTimeout(scan, 1000);
+    }).observe(target, { childList: true, subtree: true });
   }
+
+  // Triggered by background.js alarm
+  chrome.runtime.onMessage.addListener((msg, _, res) => {
+    if (msg.type === "TRIGGER_SCAN") { scan(); res({ ok: true }); }
+  });
 
   boot();
+
 })();
