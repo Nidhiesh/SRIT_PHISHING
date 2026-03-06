@@ -62,6 +62,128 @@ function initializeMonitoring() {
     monitorInstagram();
 }
 
+// ============ URL SCAM DETECTION ============
+
+// Malicious URL patterns and shortened URL services commonly used in scams
+const suspiciousUrlPatterns = {
+    shortened: [
+        'bit.ly', 'tinyurl.com', 'goo.gl', 'ow.ly', 
+        'short.link', 'short.cm', 'buff.ly', 'clck.ru',
+        'is.gd', 'buff.ly', 'qr.net', 'spr.ly',
+        't.me', 'tg.me', 'telegra.ph', 'telegram.dog'
+    ],
+    phishing: [
+        'paypal-verify', 'amazon-secure', 'google-verify',
+        'apple-id-verify', 'confirm-account', 'verify-identity',
+        'update-payment', 'secure-login', 'account-confirm',
+        'bank-security', 'verify-now', 'action-required'
+    ],
+    suspicious: [
+        'click-here', 'claim-reward', 'get-free', 
+        'verify-account', 'confirm-now', 'urgent-action',
+        'limited-time', 'act-now', 'download-now'
+    ]
+};
+
+function analyzeUrlsInMessage(messageText, element, platform) {
+    // Extract URLs from message text
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.(com|net|org|co|io|click|download|space|tk|ml|ga|cf|top|bid|win|date|faith|review|site|space|pw|info|biz)[\/\S]*)/gi;
+    const urls = messageText.match(urlRegex) || [];
+    
+    // Also extract URLs from href attributes in element
+    const linkElements = element.querySelectorAll('a[href]');
+    linkElements.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href) urls.push(href);
+    });
+    
+    if (urls.length === 0) return false;
+    
+    // Check each URL for suspicious patterns
+    let hasScamUrl = false;
+    const detectedUrlThreats = [];
+    
+    urls.forEach(url => {
+        const urlLower = url.toLowerCase();
+        
+        // Check shortened URL services
+        for (const service of suspiciousUrlPatterns.shortened) {
+            if (urlLower.includes(service)) {
+                hasScamUrl = true;
+                detectedUrlThreats.push(`Shortened URL: ${service}`);
+                break;
+            }
+        }
+        
+        // Check for phishing patterns in URL
+        for (const pattern of suspiciousUrlPatterns.phishing) {
+            if (urlLower.includes(pattern)) {
+                hasScamUrl = true;
+                detectedUrlThreats.push(`Phishing URL pattern: ${pattern}`);
+                break;
+            }
+        }
+        
+        // Check for suspicious subdomains/patterns
+        if (/\b(verify|confirm|update|action|urgent|claim|secure|login|account)\b/i.test(url)) {
+            if (/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/.test(url) || 
+                url.includes('-') && url.split('/')[2].includes('-verify')) {
+                hasScamUrl = true;
+                detectedUrlThreats.push('IP-based or suspicious domain URL');
+            }
+        }
+    });
+    
+    if (hasScamUrl) {
+        console.log(`🔗 [${platform}] SCAM URL DETECTED:`, detectedUrlThreats);
+        
+        // Highlight the message with suspicious URL
+        element.style.backgroundColor = 'rgba(255, 67, 67, 0.15)';
+        element.style.borderLeft = '5px solid #FF4444';
+        element.style.paddingLeft = '10px';
+        element.setAttribute('data-url-warning', 'true');
+        
+        // Add URL threat badge
+        addUrlBadge(element, detectedUrlThreats);
+        
+        // Show warning popup
+        chrome.runtime.sendMessage({
+            type: 'URL_SCAM_DETECTED',
+            platform: platform,
+            threats: detectedUrlThreats.slice(0, 3),
+            messageText: messageText.substring(0, 100)
+        });
+        
+        return true;
+    }
+    
+    return false;
+}
+
+function addUrlBadge(element, threats) {
+    if (element.querySelector('.url-threat-badge')) return;
+    
+    const badge = document.createElement('div');
+    badge.className = 'url-threat-badge';
+    badge.style.cssText = `
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: #ff4444;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 2px solid #cc0000;
+        font-size: 11px;
+        font-weight: bold;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    `;
+    badge.textContent = '🔗 SCAM URL';
+    element.style.position = 'relative';
+    element.appendChild(badge);
+}
+
 // ============ WHATSAPP WEB MONITORING ============
 
 function monitorWhatsApp() {
@@ -231,7 +353,10 @@ function analyzeMessage(element, platform) {
     if (messageText && messageText.trim().length > 3) {
         console.log(`[${platform}] Found message: "${messageText.substring(0, 50)}..."`);
         
-        // Send to background.js for ML analysis
+        // Check for scam URLs first (works independently)
+        const hasScamUrl = analyzeUrlsInMessage(messageText, element, platform);
+        
+        // Then check message content using ML
         chrome.runtime.sendMessage({
             type: 'CHECK_SCAM',
             text: messageText,
@@ -366,8 +491,9 @@ function showWarning(data) {
     const popup = document.createElement('div');
     popup.id = 'cyberShieldAlert';
     
-    const bgColor = data.status === 'scam' ? '#FF6B6B' : '#FFC107';
-    const title = data.status === 'scam' ? '🚨 SCAM DETECTED' : '⚠️ SUSPICIOUS';
+    const isUrlScam = data.isUrlScam === true;
+    const bgColor = isUrlScam ? '#ff4444' : (data.status === 'scam' ? '#FF6B6B' : '#FFC107');
+    const title = isUrlScam ? '🔗 MALICIOUS URL DETECTED' : (data.status === 'scam' ? '🚨 SCAM DETECTED' : '⚠️ SUSPICIOUS');
     const threats = (data.threats || []).map(t => `• ${t}`).join('<br>');
     
     popup.innerHTML = `
@@ -387,7 +513,7 @@ function showWarning(data) {
         animation: slideIn 0.4s ease-out;
     ">
         <div style="display: flex; align-items: center; margin-bottom: 12px;">
-            <div style="font-size: 24px; margin-right: 10px;">${data.status === 'scam' ? '🚨' : '⚠️'}</div>
+            <div style="font-size: 24px; margin-right: 10px;">${isUrlScam ? '🔗' : (data.status === 'scam' ? '🚨' : '⚠️')}</div>
             <div>
                 <div style="font-weight: 700; font-size: 16px; color: ${bgColor};">${title}</div>
                 <div style="font-size: 12px; color: #666;">Risk Score: ${Math.round(data.confidence * 100)}/100</div>
@@ -401,6 +527,17 @@ function showWarning(data) {
         </div>
         ` : ''}
 
+        ${isUrlScam ? `
+        <div style="background: #ffe0e0; padding: 12px; border-radius: 6px; margin: 12px 0; font-size: 13px; line-height: 1.6; color: #c41c00; border: 1px solid #ff6b6b;">
+            <div style="font-weight: 600; margin-bottom: 6px;">⚠️ URL WARNING:</div>
+            This message contains a suspicious or malicious URL. Do NOT click this link!<br>
+            <br>
+            <strong>Safe Actions:</strong><br>
+            ✓ Delete the message<br>
+            ✓ Block the sender<br>
+            ✓ Report to platform
+        </div>
+        ` : `
         <div style="background: #f0f8ff; padding: 12px; border-radius: 6px; margin: 12px 0; font-size: 13px; line-height: 1.6; color: #1a5490;">
             <div style="font-weight: 600; margin-bottom: 6px;">🛡️ Safety Tips:</div>
             ✓ Never share your OTP or password<br>
@@ -408,6 +545,7 @@ function showWarning(data) {
             ✓ Don't click unknown links<br>
             ✓ Be suspicious of urgent requests
         </div>
+        `}
 
         <button id="closeAlert" style="
             width: 100%;

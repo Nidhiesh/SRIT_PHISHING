@@ -66,6 +66,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true; // Keep connection alive for async response
     }
     
+    if (request.type === 'URL_SCAM_DETECTED') {
+        handleUrlScamDetected(request, sender, sendResponse);
+        return true;
+    }
+    
     if (request.type === 'GET_STATUS') {
         sendResponse({
             detectionEnabled: detectionEnabled,
@@ -73,6 +78,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
     }
 });
+
+// Handle URL scam detection
+function handleUrlScamDetected(request, sender, sendResponse) {
+    console.log(`[Background] URL Scam detected on ${request.platform}:`, request.threats);
+    
+    // Send alert to content script
+    chrome.tabs.sendMessage(sender.tab.id, {
+        type: 'SHOW_WARNING',
+        status: 'scam',
+        confidence: 0.95,
+        threats: request.threats,
+        checkId: `URL_${Date.now()}`,
+        isUrlScam: true,
+        messagePreview: request.messageText
+    }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.log('Content script not ready yet');
+        }
+    });
+    
+    sendResponse({ received: true });
+}
 
 // Handle scam detection - sends to Flask API
 async function handleScamCheck(request, sender, sendResponse) {
