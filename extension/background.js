@@ -189,11 +189,11 @@ async function handleScamCheck(request, sender, sendResponse) {
     }
 }
 
-// Fallback keyword detection (when backend is offline) - STRICT mode for WhatsApp
+// Fallback keyword detection (when backend is offline) - STRICT mode + Multilingual
 function fallbackDetection(message) {
-    // Training data patterns from backend
+    // Training data patterns from backend — English + Multilingual
     const trainingPatterns = {
-        // High-confidence patterns (from training data)
+        // ===== ENGLISH (High-confidence) =====
         criticalOTP: ['verify your otp', 'enter your otp', 'confirm your otp', 'one time password', 'enter otp'],
         criticalVerify: ['verify account', 'confirm identity', 'verify now', 'confirm account'],
         criticalPayment: ['update payment', 'verify credit card', 'billing information', 'payment method', 'bank account', 'cvv'],
@@ -202,7 +202,58 @@ function fallbackDetection(message) {
         criticalLink: ['bit.ly', 'tinyurl', 'goo.gl', 'ow.ly', 'short.link', 'ow.ly/secure'],
         criticalBank: ['your bank', 'bank alert', 'suspected fraud', 'unusual activity'],
         criticalImitation: ['this is your bank', 'amazon security', 'google alert', 'facebook confirm', 'instagram unusual', 'whatsapp security'],
-        criticalDownload: ['download security update', 'install app', 'download cleaner', 'critical update', 'system scan']
+        criticalDownload: ['download security update', 'install app', 'download cleaner', 'critical update', 'system scan'],
+        criticalLegal: ['arrested warrant', 'narcotic drugs', 'cbi notice', 'cyber crime notice', 'customs clearance', 'parcel held'],
+
+        // ===== HINDI Romanized (Hinglish) =====
+        hindiOTP: ['otp share karo', 'otp bhejo', 'apna otp do', 'otp share karen', 'otp batao'],
+        hindiAccount: ['khata band ho jayega', 'aapka account suspend', 'account band karenge'],
+        hindiPrize: ['aapne jeeta', 'inam jeeta', 'lottery jeeti', 'bada inam', 'cash prize mila'],
+        hindiKYC: ['kyc update karo', 'aadhaar verify karo', 'pan card verify', 'kyc nahi hua'],
+        hindiUrgent: ['turant karwai karo', 'abhi click karo', 'jaldi karo', 'tatkal sampark'],
+        hindiLegal: ['police pak', 'cbi notice aya', 'arrest hoga', 'drugs pakray gaye', 'case darj'],
+
+        // ===== HINDI Devanagari =====
+        hindiDevOTP: ['ओटीपी शेयर करें', 'ओटीपी भेजें', 'अपना ओटीपी दें'],
+        hindiDevPrize: ['आपने जीता', 'इनाम जीता', 'लॉटरी जीती', 'मुफ्त रिचार्ज'],
+        hindiDevAccount: ['खाता बंद हो जाएगा', 'आपका खाता निलंबित'],
+
+        // ===== TAMIL Romanized =====
+        tamilOTP: ['otp pari', 'otp share pannunga', 'otp kudu'],
+        tamilAccount: ['ungal account niruththapadum', 'account block aagidum'],
+        tamilPrize: ['ilava parichu', 'vetri petriirkal', 'panam vandhuchu'],
+        tamilLegal: ['ungal phone arrest aagum', 'police varum', 'cyber crime case'],
+
+        // ===== TELUGU Romanized =====
+        teluguOTP: ['otp pampandi', 'otp share cheyandi'],
+        teluguAccount: ['mee khata nilipivestuundi', 'account close avutundi'],
+        teluguPrize: ['uchita bahumati', 'meeru gelicharu', 'money vastundi'],
+
+        // ===== BENGALI Romanized =====
+        bengaliOTP: ['otp share korun', 'otp pathiye din'],
+        bengaliAccount: ['apnar account bondho hobe', 'account block korbe'],
+        bengaliPrize: ['binamullye puroshkar', 'apni jitechhen'],
+
+        // ===== GUJARATI Romanized =====
+        gujaratiOTP: ['otp share karo', 'tamaro otp apo'],
+        gujaratiPrize: ['mafat inam', 'tame jitya'],
+
+        // ===== MARATHI Romanized =====
+        marathiOTP: ['otp share kara', 'tumcha otp sanga'],
+        marathiPrize: ['mofat bakshis', 'tumhi jinklat'],
+
+        // ===== ARABIC =====
+        arabicOTP: ['شارك رمز otp', 'أرسل الرمز', 'otp شارك'],
+        arabicAccount: ['حسابك سيُغلق', 'تم تعليق حسابك'],
+        arabicPrize: ['جائزة مجانية', 'لقد فزت', 'يانصيب'],
+
+        // ===== SPANISH =====
+        spanishOTP: ['comparte tu otp', 'envia el codigo'],
+        spanishPrize: ['has ganado', 'premio gratis', 'loteria'],
+
+        // ===== FRENCH =====
+        frenchOTP: ['partagez votre otp'],
+        frenchPrize: ['vous avez gagne', 'prix gratuit', 'loterie']
     };
     
     let matchCount = 0;

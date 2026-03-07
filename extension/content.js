@@ -443,34 +443,203 @@ function monitorInstagram() {
 
 // ============ INSTANT KEYWORD PRE-SCANNER ============
 // Runs synchronously before ML — gives immediate visual feedback
+// ⭐ MULTILINGUAL SCAM DATABASE — 15+ languages
 const INSTANT_TRIGGERS = {
     scam: [
-        // OTP-related
+        // ===== ENGLISH =====
         'verify your otp', 'send otp', 'share otp', 'enter otp', 'one time password',
         'send your otp', 'forward otp', 'otp immediately', 'otp now',
-        // Account attacks
         'verify account', 'confirm identity', 'account suspended', 'account locked',
         'account will be suspended', 'account compromised', 'unusual login', 'unusual activity',
-        // Financial
         'bank account', 'cvv', 'credit card details', 'your bank', 'bank alert',
         'bank account number', 'update payment', 'billing information',
-        // Known scam domains/URLs
         'bit.ly', 'tinyurl', 'goo.gl', 'free-recharge', 'freerecharge',
         'aadhaar-verify', 'aadhaar-update', 'kyc-update', 'claim prize',
         'free-recharge-jio', 'recharge-jio', 'http://free',
-        // Impersonation
         'whatsapp security', 'amazon security', 'google alert',
         'facebook confirm', 'instagram unusual',
-        // Prize scams
         'congratulations won', 'claim prize', 'lottery', 'grand prize', 'lucky draw',
         'you have won', 'cash reward', 'free gift',
-        // Malware
-        'install app', 'download security update', 'download app', 'apk'
+        'install app', 'download security update', 'download app', '.apk',
+        'your account will be blocked', 'reset your password immediately',
+        'click link below', 'your kyc is pending', 'aadhaar link',
+        'pan card verify', 'income tax refund', 'emi overdue', 'loan approved',
+        'insurance expired', 'policy lapsed', 'customs clearance', 'parcel held',
+        'arrested warrant', 'narcotic drugs', 'cbi notice', 'cyber crime notice',
+
+        // ===== HINDI (Devanagari script) =====
+        'ओटीपी शेयर करें', 'ओटीपी भेजें', 'अपना ओटीपी दें', 'खाता बंद हो जाएगा',
+        'आपका खाता निलंबित', 'तुरंत कार्रवाई करें', 'बैंक खाता', 'क्रेडिट कार्ड',
+        'आपने जीता', 'इनाम जीता', 'लॉटरी जीती', 'मुफ्त रिचार्ज', 'कैश बैक',
+        'केवाईसी अपडेट', 'आधार वेरीफाई', 'पैन कार्ड', 'आयकर रिफंड',
+        'तत्काल सत्यापन', 'लिंक पर क्लिक करें', 'ऐप डाउनलोड करें',
+        'आपका खाता हैक', 'संदिग्ध गतिविधि', 'बैंक अलर्ट', 'फ्री गिफ्ट',
+        'बड़ा इनाम', 'ईएमआई बकाया', 'लोन मंजूर', 'बीमा समाप्त',
+
+        // ===== HINDI (Romanized / Hinglish) =====
+        'otp share karo', 'otp bhejo', 'apna otp do', 'khata band ho jayega',
+        'aapka account suspend', 'turant karwai karo', 'bank khata', 'credit card',
+        'aapne jeeta', 'inam jeeta', 'lottery jeeti', 'free recharge', 'cash back',
+        'kyc update karo', 'aadhaar verify karo', 'pan card', 'aaykar refund',
+        'tatkal satyapan', 'link par click karo', 'app download karo',
+        'aapka khata hack', 'sandigdh gatividhi', 'bank alert', 'free gift pai',
+        'bada inam', 'emi bakaya', 'loan manjur', 'bima samapt',
+        'apna password share karo', 'paytm kyc', 'google pay scam',
+        'police pak', 'cbi notice aya', 'arrest hoga', 'drugs pakray gaye',
+
+        // ===== TAMIL (Tamil script) =====
+        'ஓடிபி பகிர்', 'உங்கள் கணக்கு நிறுத்தப்படும்', 'இலவச பரிசு',
+        'வெற்றி பெற்றீர்கள்', 'லாட்டரி', 'கேஒய்சி புதுப்பி', 'ஆதார் சரிபார்',
+        'வங்கி கணக்கு', 'கிரெடிட் கார்டு விவரம்', 'உடனடி நடவடிக்கை',
+        'இணைப்பை கிளிக்', 'ஆப் பதிவிறக்கம்', 'பணம் வந்தது', 'சந்தேகமான செயல்',
+
+        // ===== TAMIL (Romanized) =====
+        'otp pari', 'ungal account niruththapadum', 'ilava parichu',
+        'vetri petriirkal', 'lottery', 'kyc puduppi', 'aadhaar sarippaar',
+        'vangi kanakku', 'credit card vivaram', 'udanadi nadavatikkai',
+        'inaippai click', 'app pathivirakkam', 'panam vandhuthu', 'sandegamaana seyal',
+        'ungal phone arrest aagum', 'police varum', 'cyber crime case',
+
+        // ===== TELUGU (Telugu script) =====
+        'ఓటీపీ పంపండి', 'మీ ఖాతా నిలిపివేయబడుతుంది', 'ఉచిత బహుమతి',
+        'మీరు గెలిచారు', 'లాటరీ', 'కేవైసీ నవీకరించండి', 'ఆధార్ ధృవీకరించండి',
+        'బ్యాంక్ ఖాతా', 'క్రెడిట్ కార్డ్', 'తక్షణ చర్య',
+        'లింక్ క్లిక్ చేయండి', 'యాప్ డౌన్లోడ్',
+
+        // ===== TELUGU (Romanized) =====
+        'otp pampandi', 'mee khata nilipivestuundi', 'uchita bahumati',
+        'meeru gelicharu', 'lottery', 'kyc naveekarinchandi', 'aadhaar dhruveekarinchandi',
+        'bank khata', 'credit card', 'takshaņa charyaga',
+        'link click cheyandi', 'app download cheyandi',
+
+        // ===== BENGALI (Bengali script) =====
+        'ওটিপি শেয়ার করুন', 'আপনার অ্যাকাউন্ট বন্ধ হবে', 'বিনামূল্যে পুরস্কার',
+        'আপনি জিতেছেন', 'লটারি', 'কেওয়াইসি আপডেট', 'আধার যাচাই',
+        'ব্যাংক অ্যাকাউন্ট', 'ক্রেডিট কার্ড', 'এখনই ক্লিক করুন',
+
+        // ===== BENGALI (Romanized) =====
+        'otp share korun', 'apnar account bondho hobe', 'binamullye puroshkar',
+        'apni jitechhen', 'lottery', 'kyc update korun', 'aadhaar jachai',
+        'bank account', 'credit card', 'ekhoni click korun',
+
+        // ===== MARATHI (Devanagari script) =====
+        'ओटीपी शेअर करा', 'तुमचे खाते निलंबित होईल', 'मोफत बक्षीस',
+        'तुम्ही जिंकलात', 'लॉटरी', 'केवायसी अपडेट', 'आधार पडताळणी',
+        'बँक खाते', 'क्रेडिट कार्ड', 'ताबडतोब क्लिक करा',
+
+        // ===== MARATHI (Romanized) =====
+        'otp share kara', 'tumche khate nilambit hoil', 'mofat bakshis',
+        'tumhi jinklat', 'lottery', 'kyc update kara', 'aadhaar padtalni',
+        'bank khate', 'credit card', 'tabadtob click kara',
+
+        // ===== GUJARATI (Gujarati script) =====
+        'ઓટીપી શેર કરો', 'તમારું ખાતું બ્લૉક થઈ જશે', 'મફત ઇનામ',
+        'તમે જીત્યા', 'લોટરી', 'કેવાયસી અપડેટ', 'આધાર ચકાસો',
+        'બેંક ખાતું', 'ક્રેડિટ કાર્ડ',
+
+        // ===== GUJARATI (Romanized) =====
+        'otp share karo', 'tamaru khatu block thai jashe', 'mafat inam',
+        'tame jitya', 'lottery', 'kyc update karo', 'aadhaar chakaso',
+        'bank khatu', 'credit card',
+
+        // ===== KANNADA (Kannada script) =====
+        'ಓಟಿಪಿ ಹಂಚಿಕೊಳ್ಳಿ', 'ನಿಮ್ಮ ಖಾತೆ ಬ್ಲಾಕ್', 'ಉಚಿತ ಬಹುಮಾನ',
+        'ನೀವು ಗೆದ್ದಿದ್ದೀರಿ', 'ಲಾಟರಿ', 'ಕೆವೈಸಿ ನವೀಕರಿಸಿ',
+
+        // ===== KANNADA (Romanized) =====
+        'otp hanchikollali', 'nimma khate block', 'uchita bahumana',
+        'neevu geddiddeeri', 'lottery', 'kyc naveekari',
+
+        // ===== MALAYALAM (Malayalam script) =====
+        'ഒടിപി പങ്കിടുക', 'നിങ്ങളുടെ അക്കൗണ്ട് ബ്ലോക്ക്', 'സൗജന്യ സമ്മാനം',
+        'നിങ്ങൾ ജയിച്ചു', 'ലോട്ടറി', 'കെവൈസി അപ്ഡേറ്റ്',
+
+        // ===== MALAYALAM (Romanized) =====
+        'otp pangidam', 'ningalude account block', 'soujanya sammanam',
+        'ningal jayichu', 'lottery', 'kyc update cheyyuka',
+
+        // ===== PUNJABI (Gurmukhi script) =====
+        'ਓਟੀਪੀ ਸਾਂਝਾ ਕਰੋ', 'ਤੁਹਾਡਾ ਖਾਤਾ ਬੰਦ', 'ਮੁਫ਼ਤ ਇਨਾਮ',
+        'ਤੁਸੀਂ ਜਿੱਤੇ', 'ਲਾਟਰੀ',
+
+        // ===== PUNJABI (Romanized) =====
+        'otp sanjha karo', 'tuhada khata band', 'muft inam',
+        'tusi jitte', 'lottery',
+
+        // ===== URDU (Romanized — commonly used in India/Pakistan) =====
+        'otp share karen', 'apka account band ho jayega', 'muft inam',
+        'aapne jeeta', 'lottery', 'kyc tajdeed karen', 'aadhaar tasteeq',
+        'bank account', 'credit card', 'abhi click karen',
+        'police arrest karegi', 'drugs pakri gai', 'case darj',
+
+        // ===== ARABIC =====
+        'شارك رمز otp', 'حسابك سيُغلق', 'جائزة مجانية', 'لقد فزت',
+        'يانصيب', 'انقر على الرابط', 'تنزيل التطبيق', 'تحقق من الهوية',
+        'تحديث بيانات البنك', 'نشاط مشبوه',
+
+        // ===== SPANISH =====
+        'comparte tu otp', 'tu cuenta sera suspendida', 'premio gratis',
+        'has ganado', 'loteria', 'haz clic aqui', 'descarga la app',
+        'verificacion de cuenta', 'actividad sospechosa',
+
+        // ===== FRENCH =====
+        'partagez votre otp', 'votre compte sera suspendu', 'prix gratuit',
+        'vous avez gagne', 'loterie', 'cliquez ici', 'telecharger application',
+        'verification de compte', 'activite suspecte',
+
+        // ===== CHINESE (Simplified — common online scam phrases) =====
+        '分享您的验证码', '您的账户将被封禁', '免费奖品', '您赢了',
+        '点击链接', '下载应用', '账户验证', '可疑活动',
+
+        // ===== RUSSIAN =====
+        'поделитесь кодом otp', 'ваш аккаунт будет заблокирован',
+        'бесплатный приз', 'вы выиграли', 'нажмите на ссылку',
+        'скачать приложение', 'подозрительная активность'
     ],
     suspicious: [
+        // ===== ENGLISH =====
         'click here', 'urgent', 'immediately', 'limited time', 'act now',
         'verify', 'update payment', 'billing', 'confirm', 'suspicious',
-        'recharge', 'claim', 'reward', 'prize', 'free offer'
+        'recharge', 'claim', 'reward', 'prize', 'free offer',
+        'you are selected', 'exclusive offer', 'don\'t share this',
+        'do not tell anyone', 'keep this secret', 'this is confidential',
+        'government notice', 'tax department', 'court notice',
+        'help me transfer', 'investment opportunity', 'double your money',
+        'bitcoin wallet', 'crypto investment', 'guaranteed returns',
+
+        // ===== HINDI (Romanized) =====
+        'jaldi karo', 'abhi click karo', 'sirf aaj ke liye', 'seedha sambandh karo',
+        'kisi ko mat batao', 'yeh secret hai', 'free paisa', 'jaldi se',
+        'sarkari notice', 'tax vibhag', 'court notice', 'guarantee return',
+        'paise double', 'bitcoin', 'crypto',
+
+        // ===== HINDI (Devanagari) =====
+        'जल्दी करो', 'अभी क्लिक करो', 'किसी को मत बताओ', 'यह गुप्त है',
+        'मुफ्त पैसा', 'सरकारी नोटिस', 'पैसे दोगुना', 'गारंटी रिटर्न',
+
+        // ===== TAMIL (Romanized) =====
+        'sigram seyya vendum', 'yarukkum solladhey', 'idhuvai rakasiamaa vaikkavum',
+        'free panam', 'sarkaar notice', 'udan seyya vendum',
+
+        // ===== TELUGU (Romanized) =====
+        'veganga cheyandi', 'evvarikee cheppakandi', 'idhi rahasyam',
+        'free money', 'government notice', 'guarantee return',
+
+        // ===== ARABIC =====
+        'اتصل بنا الآن', 'عرض محدود', 'لا تخبر أحداً', 'مجاني',
+        'اضغط هنا', 'عاجل',
+
+        // ===== SPANISH =====
+        'llame ahora', 'oferta limitada', 'no le digas a nadie',
+        'gratis', 'haga clic', 'urgente',
+
+        // ===== FRENCH =====
+        'appelez maintenant', 'offre limitee', 'ne dites a personne',
+        'gratuit', 'cliquez', 'urgent',
+
+        // ===== RUSSIAN =====
+        'позвони сейчас', 'ограниченное предложение', 'не говори никому',
+        'бесплатно', 'нажмите', 'срочно'
     ]
 };
 
@@ -895,15 +1064,25 @@ function showWarning(data) {
                 ${guidanceHtml}
             </div>
 
-            <!-- Footer CTA -->
-            <button id="cs-dismiss-alert" style="
-                width:100%;padding:12px;
-                background:linear-gradient(135deg,${accentMid},${accentDim});
-                border:1.5px solid ${accentColor};border-radius:10px;
-                color:${accentColor};font-weight:800;font-size:13px;
-                cursor:pointer;letter-spacing:0.8px;text-transform:uppercase;
-                transition:all 0.25s;
-            ">🛡️ Got it — Stay Safe</button>
+            <!-- Footer CTAs -->
+            <div style="display:flex;gap:8px;margin-bottom:0;">
+                <button id="cs-dismiss-alert" style="
+                    flex:1;padding:11px 8px;
+                    background:linear-gradient(135deg,${accentMid},${accentDim});
+                    border:1.5px solid ${accentColor};border-radius:10px;
+                    color:${accentColor};font-weight:800;font-size:12px;
+                    cursor:pointer;letter-spacing:0.6px;text-transform:uppercase;
+                    transition:all 0.25s;
+                ">🛡️ Got it</button>
+                <button id="cs-helpline-btn" style="
+                    flex:1;padding:11px 8px;
+                    background:linear-gradient(135deg,rgba(220,38,38,0.25),rgba(220,38,38,0.10));
+                    border:1.5px solid #dc2626;border-radius:10px;
+                    color:#ff6b6b;font-weight:800;font-size:12px;
+                    cursor:pointer;letter-spacing:0.4px;text-transform:uppercase;
+                    transition:all 0.25s;
+                ">🚨 Report Crime</button>
+            </div>
 
             <!-- "stays until dismissed" hint -->
             <div style="text-align:center;margin-top:8px;font-size:10px;color:#3a4a6a;letter-spacing:0.5px;">
@@ -925,10 +1104,308 @@ function showWarning(data) {
     // Bind close buttons
     const closeBtn = popup.querySelector('#cs-close-alert');
     const dismissBtn = popup.querySelector('#cs-dismiss-alert');
+    const helplineBtn = popup.querySelector('#cs-helpline-btn');
     if (closeBtn) closeBtn.addEventListener('click', close);
     if (dismissBtn) dismissBtn.addEventListener('click', close);
+    if (helplineBtn) helplineBtn.addEventListener('click', () => {
+        close();
+        setTimeout(() => showHelplineModal(), 380);
+    });
 
     // ✅ NO auto-close — warning stays until user manually dismisses or page refreshes
+}
+
+// ============ CYBER SECURITY HELPLINE MODAL ============
+
+function showHelplineModal() {
+    // Remove existing if any
+    const existing = document.getElementById('cs-helpline-modal');
+    if (existing) existing.remove();
+
+    // Inject styles once
+    if (!document.getElementById('cs-helpline-styles')) {
+        const s = document.createElement('style');
+        s.id = 'cs-helpline-styles';
+        s.textContent = `
+            @keyframes cs-modal-enter {
+                0%   { opacity:0; transform:scale(0.85) translateY(30px); }
+                60%  { transform:scale(1.02) translateY(-4px); }
+                100% { opacity:1; transform:scale(1) translateY(0); }
+            }
+            @keyframes cs-helpline-pulse {
+                0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.7); }
+                50%      { box-shadow: 0 0 0 10px rgba(220,38,38,0); }
+            }
+            @keyframes cs-number-glow {
+                0%,100% { text-shadow: 0 0 20px rgba(249,115,22,0.5); }
+                50%      { text-shadow: 0 0 40px rgba(249,115,22,0.9), 0 0 60px rgba(249,115,22,0.4); }
+            }
+            @keyframes cs-step-slide {
+                from { opacity:0; transform:translateX(-20px); }
+                to   { opacity:1; transform:translateX(0); }
+            }
+            @keyframes cs-top-scan {
+                0%   { background-position: -400px 0; }
+                100% { background-position: 400px 0; }
+            }
+            #cs-helpline-modal {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483647;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(0,0,0,0.75);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                font-family: 'Segoe UI', system-ui, sans-serif;
+                padding: 16px;
+                box-sizing: border-box;
+            }
+            #cs-helpline-card {
+                background: linear-gradient(160deg, rgba(6,14,30,0.99) 0%, rgba(12,22,48,0.99) 100%);
+                border: 1.5px solid rgba(220,38,38,0.6);
+                border-radius: 20px;
+                width: 100%;
+                max-width: 480px;
+                max-height: 90vh;
+                overflow-y: auto;
+                overflow-x: hidden;
+                box-shadow: 0 30px 80px rgba(0,0,0,0.8), 0 0 40px rgba(220,38,38,0.2);
+                animation: cs-modal-enter 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(220,38,38,0.4) transparent;
+            }
+            #cs-helpline-card::-webkit-scrollbar { width:4px; }
+            #cs-helpline-card::-webkit-scrollbar-thumb { background:rgba(220,38,38,0.4);border-radius:99px; }
+            .cs-step-item {
+                animation: cs-step-slide 0.4s ease forwards;
+                opacity: 0;
+            }
+            .cs-step-item:nth-child(1)  { animation-delay: 0.1s; }
+            .cs-step-item:nth-child(2)  { animation-delay: 0.18s; }
+            .cs-step-item:nth-child(3)  { animation-delay: 0.26s; }
+            .cs-step-item:nth-child(4)  { animation-delay: 0.34s; }
+            .cs-step-item:nth-child(5)  { animation-delay: 0.42s; }
+            .cs-step-item:nth-child(6)  { animation-delay: 0.50s; }
+            .cs-step-item:nth-child(7)  { animation-delay: 0.58s; }
+            #cs-helpline-close:hover { background:rgba(255,255,255,0.12) !important; color:#fff !important; }
+            .cs-portal-btn:hover {
+                background: rgba(59,130,246,0.30) !important;
+                border-color: #60a5fa !important;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 20px rgba(59,130,246,0.3);
+            }
+            .cs-call-btn:hover {
+                background: rgba(220,38,38,0.40) !important;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 24px rgba(220,38,38,0.4);
+            }
+        `;
+        document.head.appendChild(s);
+    }
+
+    const steps = [
+        { num:'1', icon:'🖥️', title:'Go to Cyber Crime Portal', desc:'Open <strong>cybercrime.gov.in</strong> in your browser — India\'s official national cyber crime reporting portal.' },
+        { num:'2', icon:'📋', title:'Click "Report Other Cyber Crimes"', desc:'Select this option on the homepage for scams, fraud messages, phishing links, and financial cyber crimes.' },
+        { num:'3', icon:'👤', title:'Register / Login', desc:'Create a free account with your mobile number and email. Your details remain <strong>strictly confidential</strong>.' },
+        { num:'4', icon:'📝', title:'Fill the Complaint Form', desc:'Select crime category (e.g. "Online Financial Fraud" or "Social Media Fraud"). Provide all details.' },
+        { num:'5', icon:'📎', title:'Attach Evidence', desc:'Upload screenshots of the scam message, URLs, transaction IDs, and any receipts. More evidence = faster action.' },
+        { num:'6', icon:'✅', title:'Submit & Note Complaint ID', desc:'After submission, <strong>save your Complaint Acknowledgement Number</strong>. Use it to track status anytime.' },
+        { num:'7', icon:'📞', title:'Follow Up by Calling 1930', desc:'Call the <strong>National Cyber Crime Helpline 1930</strong> (24/7) and quote your complaint ID for faster action.' }
+    ];
+
+    const stepsHtml = steps.map(s => `
+        <div class="cs-step-item" style="
+            display:flex;align-items:flex-start;gap:14px;
+            padding:12px 14px;margin-bottom:8px;
+            background:rgba(255,255,255,0.03);
+            border:1px solid rgba(255,255,255,0.06);
+            border-radius:12px;
+        ">
+            <div style="
+                min-width:34px;height:34px;border-radius:10px;
+                background:rgba(220,38,38,0.15);border:1.5px solid rgba(220,38,38,0.4);
+                display:flex;align-items:center;justify-content:center;
+                font-size:13px;font-weight:900;color:#f97316;flex-shrink:0;
+            ">${s.num}</div>
+            <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
+                    <span style="font-size:15px;">${s.icon}</span>
+                    <span style="font-size:13px;font-weight:700;color:#e2e8f0;">${s.title}</span>
+                </div>
+                <div style="font-size:12px;color:#94a3b8;line-height:1.6;">${s.desc}</div>
+            </div>
+        </div>
+    `).join('');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'cs-helpline-modal';
+    overlay.innerHTML = `
+        <div id="cs-helpline-card">
+
+            <!-- Animated top bar -->
+            <div style="
+                height:4px;
+                background:linear-gradient(90deg,#dc2626,#f97316,#fbbf24,#dc2626);
+                background-size:200% 100%;
+                animation:cs-top-scan 2.5s linear infinite;
+            "></div>
+
+            <div style="padding:22px 22px 20px;">
+
+                <!-- Header -->
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div style="
+                            width:52px;height:52px;border-radius:14px;
+                            background:rgba(220,38,38,0.15);border:2px solid rgba(220,38,38,0.5);
+                            display:flex;align-items:center;justify-content:center;font-size:26px;
+                            animation:cs-helpline-pulse 2s ease-in-out infinite;
+                        ">🚨</div>
+                        <div>
+                            <div style="font-size:16px;font-weight:900;color:#ff6b6b;letter-spacing:0.5px;text-transform:uppercase;">Cyber Crime Helpline</div>
+                            <div style="font-size:11px;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">
+                                <span style="color:#22c55e;">●</span>&nbsp;National Cyber Crime Reporting Portal
+                            </div>
+                        </div>
+                    </div>
+                    <button id="cs-helpline-close" style="
+                        background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+                        color:#64748b;width:32px;height:32px;border-radius:9px;
+                        cursor:pointer;font-size:20px;line-height:1;
+                        display:flex;align-items:center;justify-content:center;
+                        transition:all 0.2s;flex-shrink:0;
+                    ">&times;</button>
+                </div>
+
+                <!-- Emergency Helpline Number -->
+                <div style="
+                    background:linear-gradient(135deg,rgba(220,38,38,0.2),rgba(239,68,68,0.08));
+                    border:2px solid rgba(220,38,38,0.5);
+                    border-radius:14px;padding:18px 20px;margin-bottom:16px;
+                    text-align:center;
+                ">
+                    <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;">
+                        🇮🇳 NATIONAL CYBER CRIME HELPLINE
+                    </div>
+                    <div style="
+                        font-size:52px;font-weight:900;color:#f97316;
+                        letter-spacing:4px;line-height:1;
+                        animation:cs-number-glow 2.5s ease-in-out infinite;
+                        font-family:'Consolas','Courier New',monospace;
+                    ">1930</div>
+                    <div style="font-size:12px;color:#94a3b8;margin-top:8px;">Available 24 × 7 · Free to call · All networks</div>
+                    <a href="tel:1930" style="
+                        display:inline-block;margin-top:12px;
+                        background:linear-gradient(135deg,#dc2626,#b91c1c);
+                        color:#fff;padding:10px 28px;border-radius:10px;
+                        font-weight:800;font-size:14px;text-decoration:none;
+                        letter-spacing:0.5px;
+                        transition:all 0.25s;
+                    " class="cs-call-btn">📞 Call 1930 Now</a>
+                </div>
+
+                <!-- Portal link -->
+                <div style="
+                    background:rgba(59,130,246,0.08);border:1.5px solid rgba(59,130,246,0.3);
+                    border-radius:12px;padding:14px 16px;margin-bottom:20px;
+                    display:flex;align-items:center;justify-content:space-between;gap:12px;
+                ">
+                    <div>
+                        <div style="font-size:13px;font-weight:700;color:#93c5fd;margin-bottom:3px;">🌐 Official Online Portal</div>
+                        <div style="font-size:12px;color:#64748b;">File detailed complaint with screenshots & evidence</div>
+                    </div>
+                    <a href="https://cybercrime.gov.in" target="_blank" style="
+                        background:rgba(59,130,246,0.15);border:1.5px solid rgba(59,130,246,0.4);
+                        color:#60a5fa;padding:9px 16px;border-radius:9px;
+                        font-weight:700;font-size:12px;text-decoration:none;
+                        white-space:nowrap;flex-shrink:0;
+                        transition:all 0.25s;
+                    " class="cs-portal-btn">Report Online →</a>
+                </div>
+
+                <!-- What to do IMMEDIATELY -->
+                <div style="
+                    background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.25);
+                    border-radius:12px;padding:12px 14px;margin-bottom:20px;
+                ">
+                    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#fbbf24;margin-bottom:10px;font-weight:700;">⚡ Do This IMMEDIATELY</div>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#cbd5e1;">
+                            <span>🔒</span> <span><strong>Do NOT share OTPs, passwords, or CVV</strong> with anyone</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#cbd5e1;">
+                            <span>🏦</span> <span>If money was transferred, <strong>call your bank NOW</strong> to freeze the transaction</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#cbd5e1;">
+                            <span>📱</span> <span><strong>Block the sender</strong> and screenshot all evidence before deleting</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#cbd5e1;">
+                            <span>⏱️</span> <span>Report within <strong>24 hours</strong> — faster reports = higher recovery chances</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step-by-step guide -->
+                <div style="margin-bottom:16px;">
+                    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:12px;font-weight:700;">📋 How to File a Complaint — Step by Step</div>
+                    ${stepsHtml}
+                </div>
+
+                <!-- Additional contacts -->
+                <div style="
+                    background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
+                    border-radius:12px;padding:12px 14px;margin-bottom:16px;
+                ">
+                    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:10px;font-weight:700;">📞 Other Emergency Contacts</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div style="background:rgba(255,255,255,0.04);border-radius:9px;padding:10px 12px;">
+                            <div style="font-size:10px;color:#64748b;margin-bottom:2px;">Police Control Room</div>
+                            <div style="font-size:18px;font-weight:800;color:#e2e8f0;font-family:monospace;">100</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.04);border-radius:9px;padding:10px 12px;">
+                            <div style="font-size:10px;color:#64748b;margin-bottom:2px;">RBI Fraud Helpline</div>
+                            <div style="font-size:18px;font-weight:800;color:#e2e8f0;font-family:monospace;">14440</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.04);border-radius:9px;padding:10px 12px;">
+                            <div style="font-size:10px;color:#64748b;margin-bottom:2px;">TRAI DNC Registry</div>
+                            <div style="font-size:18px;font-weight:800;color:#e2e8f0;font-family:monospace;">1909</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.04);border-radius:9px;padding:10px 12px;">
+                            <div style="font-size:10px;color:#64748b;margin-bottom:2px;">Sanchar Saathi</div>
+                            <div style="font-size:12px;font-weight:700;color:#60a5fa;">sancharsaathi.gov.in</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Close button -->
+                <button id="cs-helpline-close-bottom" style="
+                    width:100%;padding:13px;
+                    background:linear-gradient(135deg,rgba(220,38,38,0.2),rgba(220,38,38,0.08));
+                    border:1.5px solid rgba(220,38,38,0.5);border-radius:11px;
+                    color:#ff6b6b;font-weight:800;font-size:13px;letter-spacing:0.8px;
+                    text-transform:uppercase;cursor:pointer;transition:all 0.25s;
+                ">✅ I Understand — Close Guide</button>
+
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeModal = () => {
+        overlay.style.transition = 'opacity 0.3s ease';
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 320);
+    };
+
+    // Close on backdrop click
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    const topClose = overlay.querySelector('#cs-helpline-close');
+    const bottomClose = overlay.querySelector('#cs-helpline-close-bottom');
+    if (topClose)    topClose.addEventListener('click', closeModal);
+    if (bottomClose) bottomClose.addEventListener('click', closeModal);
 }
 
 
