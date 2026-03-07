@@ -261,7 +261,7 @@ if (/\+?[\d\s]{10,15}(?![\d])/i.test(message)) {
 **After:**
 ```json
 "version": "3.1",
-"description": "AI-powered scam detection that automatically checks all messages and emails in real-time on WhatsApp Web, Gmail, Instagram, and more",
+"description": "AI-powered scam detection that automatically checks all messages and emails in real-time on WhatsApp Web and Gmail",
 ```
 
 ---
@@ -295,7 +295,6 @@ if (/\+?[\d\s]{10,15}(?![\d])/i.test(message)) {
 ```json
 "host_permissions": [
     "*://*.whatsapp.com/*",
-    "*://*.instagram.com/*",
     ...
 ],
 ```
@@ -305,8 +304,6 @@ if (/\+?[\d\s]{10,15}(?![\d])/i.test(message)) {
 "host_permissions": [
     "*://*.whatsapp.com/*",
     "*://web.whatsapp.com/*",
-    "*://*.instagram.com/*",
-    ...
 ],
 ```
 
@@ -387,7 +384,7 @@ Score: 0 points
 ## Backward Compatibility
 
 ✅ All changes are **fully backward compatible**
-✅ Gmail and Instagram detection unchanged
+✅ Gmail detection unchanged
 ✅ Backend API unchanged
 ✅ Storage schema unchanged
 ✅ UI remains clean and intuitive

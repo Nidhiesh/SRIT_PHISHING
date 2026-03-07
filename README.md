@@ -211,9 +211,8 @@ Message appears in WhatsApp Web
 | Feature | Status | Notes |
 |---------|--------|-------|
 | WhatsApp Web Scanning | ✅ Enhanced | All message types supported |
-| Gmail Scanning | ✅ Active | Unchanged from before |
-| Instagram DM Scanning | ✅ Active | Unchanged from before |
-| Offline Detection | ✅ Fallback | Works without backend |
+| WhatsApp Web Scanning | ✅ Active | Enhanced WhatsApp integration |
+| Gmail Scanning | ✅ Active | Deep email analysis | Works without backend |
 | Risk Scoring | ✅ Enhanced | WhatsApp-specific patterns |
 | Visual Alerts | ✅ Improved | Better colors and styling |
 | Console Logging | ✅ Enhanced | Better debugging info |
@@ -224,7 +223,6 @@ Message appears in WhatsApp Web
 
 - ✅ **WhatsApp Web** (web.whatsapp.com) - NOW FULLY ENHANCED
 - ✅ **Gmail** (mail.google.com)
-- ✅ **Instagram** (@instagram.com)
 
 ---
 

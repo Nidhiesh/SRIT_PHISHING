@@ -171,7 +171,7 @@ Open DevTools (F12 → Console) to see:
 
 ## ⚠️ Important Notes
 
-1. **Gmail & Instagram**: Not affected, work as before
+1. **Gmail**: Not affected, work as before
 2. **Backend Online**: Uses ML model with 60% confidence threshold
 3. **Backend Offline**: Requires 2+ training pattern matches
 4. **WhatsApp Only**: Extra filtering for WhatsApp messages

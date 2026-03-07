@@ -194,7 +194,6 @@ Open browser DevTools: Press `F12` → Console tab
 |----------|--------|----------|
 | **WhatsApp Web** | ✅ Enhanced | Full ML detection + visual alerts |
 | **Gmail** | ✅ Enabled | Email scanning + alerts |
-| **Instagram** | ✅ Enabled | DM scanning + alerts |
 
 ---
 
@@ -213,8 +212,8 @@ Open browser DevTools: Press `F12` → Console tab
 ```
 extension/
 ├── manifest.json          # Extension configuration & permissions
-├── content.js            # Message monitoring & analysis (WhatsApp, Gmail, Instagram)
-├── background.js         # Backend communication & ML detection
+├── content.js            # Message monitoring & analysis (WhatsApp, Gmail)
+├── background.js         # API communication & fallback detection
 ├── popup.html           # Extension popup UI
 ├── popup.js             # Popup controls & status display
 └── popup.html.css       # Popup styling

@@ -132,7 +132,7 @@ Check **F12 → Console** for:
 ✅ **Fewer False Positives**: Requires multiple pattern matches  
 ✅ **Training-Aligned**: Matches your ML dataset  
 ✅ **Still Works Offline**: Fallback uses same pattern logic  
-✅ **Gmail/Instagram**: Unchanged  
+✅ **Gmail**: Unchanged  
 
 ---
 

@@ -118,10 +118,10 @@ Try sending these to yourself to test detection:
 
 ## 🛡️ Pro Tips
 
-1. **Enable All Platforms**: Detection also works on Gmail and Instagram
-2. **Check Backend Status**: Green dot = ML model active
-3. **Review Threats**: Expand threat details in alerts
-4. **Trust Your Gut**: If something feels off, it probably is!
+1.  **Enable All Platforms**: Detection also works on Gmail
+2.  **Check Backend Status**: Green dot = ML model active
+3.  **Review Threats**: Expand threat details in alerts
+4.  **Trust Your Gut**: If something feels off, it probably is!
 
 ## 📋 Recent Improvements
 

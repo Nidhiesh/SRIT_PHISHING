@@ -168,7 +168,6 @@ SCAM_MESSAGES = [
     "Confirm identity with OTP: https://tinyurl.com/otp-verify",
     "Emergency: Unusual activity detected: bit.ly/security-check",
     "Verify WhatsApp: https://whatsapp-verify.xyz/confirm",
-    "Instagram account locked - fix now: https://instagram-verify.click",
     "Your Amazon account suspended: bit.ly/amazon-verify",
     "Facebook security alert - action required: https://facebook-verify.net",
     "Google account recovery: http://google-account-recovery.top",
@@ -194,8 +193,6 @@ SCAM_MESSAGES = [
     "Amazon Security Team - confirm your account",
     "Facebook: confirm identity with your password",
     "WhatsApp Security - verify your account number",
-    "Instagram - unusual activity detected on account",
-    "Your bank here - verify account immediately",
     
     # Malware/Download Scams
     "Download latest security update - click here",
@@ -380,8 +377,6 @@ SAFE_MESSAGES = [
     "Documentation: https://www.wikipedia.org/article",
     "News article: https://www.bbc.com/news",
     "Help center: https://www.support.google.com/help",
-    "Knowledge base: https://help.instagram.com/",
-    "Official blog: https://blog.twitter.com/official",
     "Terms & conditions: https://www.example.com/terms",
     "Privacy policy: https://www.example.com/privacy",
     "Contact us: https://www.company.com/contact",
