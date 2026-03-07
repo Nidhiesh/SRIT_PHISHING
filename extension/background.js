@@ -149,18 +149,23 @@ async function handleScamCheck(request, sender, sendResponse) {
         
         console.log(`[Background] Detection result:`, result);
         
-        // For WhatsApp: Only alert if message matches training patterns
-        const shouldAlert = result.matches_training_patterns === true && result.risk_level !== 'safe';
+        // Backend /detect returns: { risk_level, confidence, threats, matches_training_patterns }
+        const riskLevel  = result.risk_level  || 'safe';
+        const confidence = result.confidence  || 0;
+        const threats    = result.threats     || [];
+        const matchesTraining = result.matches_training_patterns === true;
+        
+        const shouldAlert = matchesTraining && riskLevel !== 'safe';
         
         // Send alert to content script if scam detected AND matches training data
         if (shouldAlert) {
             chrome.tabs.sendMessage(sender.tab.id, {
                 type: 'SHOW_WARNING',
-                status: result.risk_level,
-                confidence: result.confidence,
-                threats: result.threats,
+                status: riskLevel,
+                confidence: confidence,
+                threats: threats,
                 checkId: result.check_id,
-                matchesTrainingData: result.matches_training_patterns
+                matchesTrainingData: matchesTraining
             }, (response) => {
                 if (chrome.runtime.lastError) {
                     console.log('Content script not ready yet');
@@ -170,11 +175,11 @@ async function handleScamCheck(request, sender, sendResponse) {
         
         // Send response back
         sendResponse({
-            type: result.risk_level === 'safe' ? 'MESSAGE_SAFE' : 'SCAM_DETECTED',
-            status: result.risk_level,
-            confidence: result.confidence,
-            threats: result.threats,
-            matchesTrainingData: result.matches_training_patterns
+            type: riskLevel === 'safe' ? 'MESSAGE_SAFE' : 'SCAM_DETECTED',
+            status: riskLevel,
+            confidence: confidence,
+            threats: threats,
+            matchesTrainingData: matchesTraining
         });
         
     } catch (error) {
