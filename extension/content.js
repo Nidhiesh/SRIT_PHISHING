@@ -58,9 +58,6 @@ function initializeMonitoring() {
     
     // Monitor Gmail
     monitorGmail();
-    
-    // Monitor Instagram
-    monitorInstagram();
 }
 
 // ============ URL SCAM DETECTION ============
@@ -398,47 +395,6 @@ function monitorGmail() {
     }
 }
 
-// ============ INSTAGRAM MONITORING ============
-
-function monitorInstagram() {
-    // Safety check: ensure document.body exists
-    if (!document.body) {
-        console.log('⚠ Instagram: document.body not ready');
-        return;
-    }
-    
-    try {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === 1) {
-                        // Find new DMs
-                        const messages = node.querySelectorAll('[role="article"]');
-                        messages.forEach(msg => {
-                            analyzeMessage(msg, 'instagram');
-                        });
-                    }
-                });
-            });
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-
-        // Check existing messages
-        setTimeout(() => {
-            const existing = document.querySelectorAll('[role="article"]');
-            existing.forEach(msg => analyzeMessage(msg, 'instagram'));
-        }, 2000);
-        
-        console.log('✓ Instagram DM monitoring started');
-    } catch (error) {
-        console.error('❌ Instagram monitoring error:', error);
-    }
-}
-
 // ============ MESSAGE ANALYSIS ============
 
 // ============ INSTANT KEYWORD PRE-SCANNER ============
@@ -457,7 +413,7 @@ const INSTANT_TRIGGERS = {
         'aadhaar-verify', 'aadhaar-update', 'kyc-update', 'claim prize',
         'free-recharge-jio', 'recharge-jio', 'http://free',
         'whatsapp security', 'amazon security', 'google alert',
-        'facebook confirm', 'instagram unusual',
+        'facebook confirm',
         'congratulations won', 'claim prize', 'lottery', 'grand prize', 'lucky draw',
         'you have won', 'cash reward', 'free gift',
         'install app', 'download security update', 'download app', '.apk',
@@ -803,18 +759,7 @@ function extractText(element, platform) {
         }
         if (!text) text = element.innerText;
     }
-    else if (platform === 'instagram') {
-        // Try Instagram selectors
-        const selectors = ['span', 'p'];
-        for (let selector of selectors) {
-            const el = element.querySelector(selector);
-            if (el) {
-                text = el.innerText || el.textContent;
-                if (text && text.trim().length > 3) break;
-            }
-        }
-        if (!text) text = element.innerText;
-    }
+
 
     // Clean up text
     text = text.trim().replace(/\n+/g, ' ').substring(0, 500);

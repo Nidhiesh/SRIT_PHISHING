@@ -201,7 +201,7 @@ function fallbackDetection(message) {
         criticalUrgent: ['account will be suspended', 'account compromised', 'account locked', 'action required immediately', 'unusual login detected'],
         criticalLink: ['bit.ly', 'tinyurl', 'goo.gl', 'ow.ly', 'short.link', 'ow.ly/secure'],
         criticalBank: ['your bank', 'bank alert', 'suspected fraud', 'unusual activity'],
-        criticalImitation: ['this is your bank', 'amazon security', 'google alert', 'facebook confirm', 'instagram unusual', 'whatsapp security'],
+        criticalImitation: ['this is your bank', 'amazon security', 'google alert', 'facebook confirm', 'whatsapp security'],
         criticalDownload: ['download security update', 'install app', 'download cleaner', 'critical update', 'system scan'],
         criticalLegal: ['arrested warrant', 'narcotic drugs', 'cbi notice', 'cyber crime notice', 'customs clearance', 'parcel held'],
 
