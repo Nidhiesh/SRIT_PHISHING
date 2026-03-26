@@ -1339,6 +1339,312 @@ function showHelplineModal() {
 
 console.log('✓ Cyber Shield ready and monitoring');
 
+// ============ URL REDIRECT INTERCEPTION (NEW FEATURE) ============
+// Intercepts clicks on scam URLs in WhatsApp Web & Gmail
+// Shows a "Proceed / Go Back" confirmation modal before any redirect
+
+(function initUrlRedirectGuard() {
+
+    // Helper: check if a given href matches any scam pattern
+    function isScamUrl(href) {
+        if (!href) return false;
+        const url = href.toLowerCase();
+
+        // Skip anchor-only, mailto, javascript, and same-origin hash links
+        if (
+            url.startsWith('#') ||
+            url.startsWith('mailto:') ||
+            url.startsWith('javascript:') ||
+            url.startsWith('tel:')
+        ) return false;
+
+        // Reuse the existing suspiciousUrlPatterns object already defined above
+        for (const service of suspiciousUrlPatterns.shortened) {
+            if (url.includes(service)) return true;
+        }
+        for (const pattern of suspiciousUrlPatterns.phishing) {
+            if (url.includes(pattern)) return true;
+        }
+        for (const pattern of suspiciousUrlPatterns.suspicious) {
+            if (url.includes(pattern)) return true;
+        }
+        for (const keyword of suspiciousUrlPatterns.scamDomainKeywords) {
+            if (url.includes(keyword)) return true;
+        }
+        // IP-based URLs are always suspicious
+        if (/https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(href)) return true;
+
+        return false;
+    }
+
+    // Inject modal styles once
+    function injectGuardStyles() {
+        if (document.getElementById('cs-guard-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'cs-guard-styles';
+        style.textContent = `
+            #cs-redirect-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.72);
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+                z-index: 2147483647;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: cs-guard-fadein 0.2s ease;
+            }
+            @keyframes cs-guard-fadein {
+                from { opacity: 0; }
+                to   { opacity: 1; }
+            }
+            #cs-redirect-modal {
+                background: linear-gradient(145deg, #0d1b2a 0%, #1a2740 100%);
+                border: 1.5px solid rgba(255,80,80,0.45);
+                border-radius: 18px;
+                padding: 32px 28px 26px;
+                width: 420px;
+                max-width: calc(100vw - 32px);
+                box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+                font-family: 'Segoe UI', system-ui, sans-serif;
+                animation: cs-guard-slidein 0.25s cubic-bezier(0.34,1.56,0.64,1);
+            }
+            @keyframes cs-guard-slidein {
+                from { opacity: 0; transform: scale(0.88) translateY(20px); }
+                to   { opacity: 1; transform: scale(1)    translateY(0px);  }
+            }
+            #cs-redirect-modal .cs-guard-icon {
+                font-size: 44px;
+                text-align: center;
+                margin-bottom: 12px;
+                filter: drop-shadow(0 0 12px rgba(255,80,80,0.6));
+            }
+            #cs-redirect-modal h2 {
+                color: #ff5252;
+                font-size: 18px;
+                font-weight: 800;
+                text-align: center;
+                margin: 0 0 8px;
+                letter-spacing: 0.3px;
+            }
+            #cs-redirect-modal .cs-guard-subtitle {
+                color: #94a3b8;
+                font-size: 13px;
+                text-align: center;
+                margin-bottom: 18px;
+                line-height: 1.5;
+            }
+            #cs-redirect-modal .cs-guard-url-box {
+                background: rgba(255,82,82,0.08);
+                border: 1px solid rgba(255,82,82,0.25);
+                border-radius: 10px;
+                padding: 10px 14px;
+                margin-bottom: 20px;
+                word-break: break-all;
+                font-size: 11.5px;
+                color: #ff8a80;
+                font-family: 'Consolas','Courier New',monospace;
+                max-height: 56px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+            }
+            #cs-redirect-modal .cs-guard-warning-list {
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.07);
+                border-radius: 10px;
+                padding: 12px 14px;
+                margin-bottom: 22px;
+                font-size: 12px;
+                color: #cbd5e1;
+                line-height: 1.8;
+            }
+            #cs-redirect-modal .cs-guard-warning-list li {
+                list-style: none;
+                padding-left: 4px;
+            }
+            #cs-redirect-modal .cs-guard-warning-list li::before {
+                content: '⚠️  ';
+            }
+            #cs-redirect-modal .cs-guard-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+            #cs-guard-goback-btn {
+                padding: 13px;
+                background: linear-gradient(135deg, #1a3a2a, #0d2a1a);
+                border: 1.5px solid rgba(0,200,100,0.5);
+                border-radius: 11px;
+                color: #00e676;
+                font-weight: 800;
+                font-size: 13px;
+                cursor: pointer;
+                transition: all 0.2s;
+                letter-spacing: 0.4px;
+            }
+            #cs-guard-goback-btn:hover {
+                background: linear-gradient(135deg, #1e4a30, #122e1c);
+                border-color: rgba(0,230,118,0.8);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 16px rgba(0,200,100,0.25);
+            }
+            #cs-guard-proceed-btn {
+                padding: 13px;
+                background: linear-gradient(135deg, rgba(220,38,38,0.18), rgba(220,38,38,0.06));
+                border: 1.5px solid rgba(220,38,38,0.45);
+                border-radius: 11px;
+                color: #ff6b6b;
+                font-weight: 700;
+                font-size: 12px;
+                cursor: pointer;
+                transition: all 0.2s;
+                letter-spacing: 0.3px;
+            }
+            #cs-guard-proceed-btn:hover {
+                background: linear-gradient(135deg, rgba(220,38,38,0.28), rgba(220,38,38,0.12));
+                border-color: rgba(220,38,38,0.75);
+                transform: translateY(-1px);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Show the redirect guard modal
+    function showRedirectGuard(targetUrl, onProceed, onGoBack) {
+        // Remove any existing guard modal first
+        const existing = document.getElementById('cs-redirect-overlay');
+        if (existing) existing.remove();
+
+        injectGuardStyles();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'cs-redirect-overlay';
+
+        const displayUrl = targetUrl.length > 80
+            ? targetUrl.substring(0, 77) + '...'
+            : targetUrl;
+
+        overlay.innerHTML = `
+            <div id="cs-redirect-modal" role="dialog" aria-modal="true" aria-labelledby="cs-guard-title">
+
+                <div class="cs-guard-icon">🛡️</div>
+
+                <h2 id="cs-guard-title">⚠ Suspicious Link Detected</h2>
+
+                <p class="cs-guard-subtitle">
+                    CyberShield has flagged this link as potentially dangerous.<br>
+                    Are you sure you want to proceed?
+                </p>
+
+                <div class="cs-guard-url-box" title="${targetUrl}">${targetUrl}</div>
+
+                <ul class="cs-guard-warning-list">
+                    <li>This URL matches known scam/phishing patterns</li>
+                    <li>It may steal your personal or financial information</li>
+                    <li>You could be redirected to a fake website</li>
+                </ul>
+
+                <div class="cs-guard-actions">
+                    <button id="cs-guard-goback-btn">✅ Go Back (Safe)</button>
+                    <button id="cs-guard-proceed-btn">⚠ Proceed Anyway</button>
+                </div>
+
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const modal = overlay.querySelector('#cs-redirect-modal');
+
+        // Go Back — dismiss and stay on page
+        overlay.querySelector('#cs-guard-goback-btn').addEventListener('click', () => {
+            dismissGuard(overlay);
+            if (onGoBack) onGoBack();
+        });
+
+        // Proceed — open the URL
+        overlay.querySelector('#cs-guard-proceed-btn').addEventListener('click', () => {
+            dismissGuard(overlay);
+            if (onProceed) onProceed();
+        });
+
+        // Clicking the dark backdrop = go back (safe default)
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                dismissGuard(overlay);
+                if (onGoBack) onGoBack();
+            }
+        });
+
+        // ESC key = go back
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                document.removeEventListener('keydown', escHandler);
+                dismissGuard(overlay);
+                if (onGoBack) onGoBack();
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+
+    function dismissGuard(overlay) {
+        if (!overlay) return;
+        overlay.style.transition = 'opacity 0.25s ease';
+        overlay.style.opacity = '0';
+        setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 260);
+    }
+
+    // Resolve the final href from a click target (walk up to <a>)
+    function getAnchorHref(target) {
+        let el = target;
+        while (el && el !== document.body) {
+            if (el.tagName === 'A' && el.href) return el.href;
+            el = el.parentElement;
+        }
+        return null;
+    }
+
+    // Global click interceptor — capture phase so we always run first
+    document.addEventListener('click', function csGuardClickHandler(e) {
+        // Only intercept on WhatsApp Web and Gmail
+        const host = location.hostname;
+        const isWhatsApp = host.includes('whatsapp.com');
+        const isGmail    = host.includes('mail.google.com');
+        if (!isWhatsApp && !isGmail) return;
+
+        const href = getAnchorHref(e.target);
+        if (!href) return;
+        if (!isScamUrl(href)) return;
+
+        // Block the default navigation
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        console.log(`🛡️ [CyberShield] Redirect guard triggered for: ${href}`);
+
+        showRedirectGuard(
+            href,
+            // onProceed — user accepted the risk
+            () => {
+                console.log(`⚠️  [CyberShield] User chose to proceed to: ${href}`);
+                window.open(href, '_blank', 'noopener,noreferrer');
+            },
+            // onGoBack — user stayed safe
+            () => {
+                console.log(`✅ [CyberShield] User blocked redirect to: ${href}`);
+            }
+        );
+
+    }, true); // true = capture phase
+
+    console.log('✓ CyberShield URL Redirect Guard active');
+
+})();
+
 
 // ============ PREMIUM ACTIVATED BADGE ============
 
