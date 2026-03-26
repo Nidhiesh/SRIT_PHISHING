@@ -5,8 +5,6 @@
  */
 
 let detectionEnabled = true;
-// Use message CONTENT as the dedup key (not DOM attribute — WhatsApp recycles nodes!)
-const checkedMessageHashes = new Set();
 
 // Load detection status
 chrome.storage.sync.get(['detectionEnabled'], (data) => {
@@ -608,21 +606,6 @@ function instantKeywordCheck(text) {
 
 function analyzeMessage(element, platform) {
     if (!element || !detectionEnabled) return;
-
-    // Use a CONTENT HASH for deduplication — WhatsApp recycles DOM nodes,
-    // so element attributes get cleared when the node is reused for a new message.
-    const rawText = (element.innerText || element.textContent || '').trim().substring(0, 200);
-    if (!rawText || rawText.length < 3) return;
-    
-    // Simple 32-bit hash of content to keep Set small
-    let hash = 0;
-    for (let i = 0; i < rawText.length; i++) {
-        hash = ((hash << 5) - hash) + rawText.charCodeAt(i);
-        hash |= 0;
-    }
-    const key = `${platform}_${hash}`;
-    if (checkedMessageHashes.has(key)) return;
-    checkedMessageHashes.add(key);
 
     // Extract message text based on platform
     let messageText = extractText(element, platform);

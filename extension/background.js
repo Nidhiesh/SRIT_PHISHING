@@ -3,6 +3,35 @@
  * Runs automatically in background
  * Communicates with Flask API for scam detection
  */
+import { logThreat } from './firebase-config.js';
+
+// This is the "Receiver" that stays active in the background
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'CHECK_SCAM') {
+    console.log("Received alert from WhatsApp, sending to Firebase...");
+
+    // Call the function we built in firebase-config.js
+    logThreat(sender.tab.url || "WhatsApp Web", "Suspicious Message Detected")
+      .then(() => {
+        sendResponse({ status: "Success", logged: true });
+      })
+      .catch((error) => {
+        console.error("Firebase log failed:", error);
+        sendResponse({ status: "Error", message: error.message });
+      });
+
+    return true; // CRITICAL: Keeps the connection alive for the async Firebase call
+  }
+});
+
+// Listen for redirects or phishing sites blocked by your rules
+chrome.declarativeNetRequest.onRuleMatchedDebug.addListener((info) => {
+    const blockedUrl = info.request.url;
+    console.log("CyberShield Blocked:", blockedUrl);
+    
+    // This sends the data to your Firebase Firestore
+    logThreat(blockedUrl, "Malicious Redirect/Phishing");
+});
 
 const API_ENDPOINT = 'http://localhost:5000/detect';
 let detectionEnabled = true;
@@ -308,4 +337,3 @@ function fallbackDetection(message) {
     };
 }
 
-console.log('🛡️ Cyber Shield Background Worker loaded and running');

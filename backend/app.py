@@ -141,7 +141,7 @@ def detect():
             'confidence': float(scam_probability),
             'risk_level': risk_level,
             'threats': threats,
-            'matches_training_patterns': matches_training_patterns,
+            'matches_training_patterns': bool(matches_training_patterns),
             'check_id': f"CHK_{stats['total_checks']:06d}",
             'timestamp': datetime.now().isoformat()
         }
