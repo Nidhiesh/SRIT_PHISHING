@@ -66,7 +66,8 @@ const suspiciousUrlPatterns = {
         'bit.ly', 'tinyurl.com', 'goo.gl', 'ow.ly', 
         'short.link', 'short.cm', 'buff.ly', 'clck.ru',
         'is.gd', 'qr.net', 'spr.ly',
-        't.me', 'tg.me', 'telegra.ph', 'telegram.dog'
+        't.me', 'tg.me', 'telegra.ph', 'telegram.dog',
+        'trycloudflare.com', 'trycloudflare', '.trycloudflare.com'
     ],
     phishing: [
         'paypal-verify', 'amazon-secure', 'google-verify',
