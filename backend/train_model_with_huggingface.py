@@ -143,6 +143,10 @@ SCAM_MESSAGES = [
     "Claim: https://tg.me/get-reward",
     "Update: https://tinyurl.com/update-payment",
     
+    # Tunneling/Proxy Service URLs (Cloudflare Tunnels used for phishing)
+    "Verify now: https://records-served-compounds-catch.trycloudflare.com",
+    "Confirm identity: https://labels-thy-water-receiving.trycloudflare.com",
+    
     # Phishing Domain URLs
     "Verify account: http://paypal-verify-account.xyz",
     "Update bank: http://bank-login-secure.site",
